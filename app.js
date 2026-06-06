@@ -258,9 +258,6 @@
       const form = new FormData(formElement);
       const payload = {
         buyerName: form.get("buyerName").trim(),
-        department: form.get("department").trim(),
-        contact: form.get("contact").trim(),
-        note: form.get("note").trim(),
         items,
         total: items.reduce((sum, item) => sum + item.subtotal, 0)
       };

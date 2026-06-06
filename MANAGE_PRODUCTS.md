@@ -24,9 +24,15 @@
 1. 上傳圖片到 Google Drive。
 2. 對圖片按右鍵，選「共用」。
 3. 權限改成「知道連結的任何人都可以檢視」。
-4. 複製連結，貼到 `imageUrl` 欄。
+4. 複製分享連結，直接貼到 `imageUrl` 欄。
 
-如果 Google Drive 圖片沒有正常顯示，改用 Imgur、Cloudinary、或其他能產生公開圖片網址的服務。
+可以直接貼這種 Google Drive 分享連結：
+
+```text
+https://drive.google.com/file/d/圖片檔案ID/view?usp=sharing
+```
+
+網站會自動轉成可顯示的圖片網址。
 
 ## 上架/下架
 

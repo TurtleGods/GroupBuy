@@ -6,7 +6,7 @@ const SHEETS = {
 
 const HEADERS = {
   Products: ["id", "name", "description", "price", "deadline", "color", "imageUrl", "active"],
-  Orders: ["id", "buyerName", "department", "contact", "note", "itemsJson", "total", "createdAt"],
+  Orders: ["id", "buyerName", "itemsJson", "total", "createdAt"],
   Payments: ["id", "orderId", "payerName", "amount", "method", "paidAt", "reference", "proofUrl", "status", "createdAt"]
 };
 
@@ -63,6 +63,10 @@ function ensureSheets() {
       sheet = spreadsheet.insertSheet(sheetName);
     }
 
+    if (sheetName === SHEETS.orders) {
+      migrateOrdersSheet(sheet);
+    }
+
     const headers = HEADERS[sheetName];
     let current = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
     if (sheetName === SHEETS.products && current[6] === "active" && current[7] !== "active") {
@@ -77,6 +81,20 @@ function ensureSheets() {
   });
 
   seedProductsIfEmpty();
+}
+
+function migrateOrdersSheet(sheet) {
+  const lastColumn = sheet.getLastColumn();
+  if (lastColumn < 8) {
+    return;
+  }
+
+  const current = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const oldHeaders = ["id", "buyerName", "department", "contact", "note", "itemsJson", "total", "createdAt"];
+  const isOldOrderSheet = oldHeaders.every((header, index) => current[index] === header);
+  if (isOldOrderSheet) {
+    sheet.deleteColumns(3, 3);
+  }
 }
 
 function seedProductsIfEmpty() {
@@ -105,8 +123,27 @@ function listProducts() {
       price: Number(product.price || 0),
       deadline: String(product.deadline || ""),
       color: String(product.color || "#1d6b73"),
-      imageUrl: String(product.imageUrl || "")
+      imageUrl: normalizeImageUrl(product.imageUrl)
     }));
+}
+
+function normalizeImageUrl(value) {
+  const url = String(value || "").trim();
+  if (!url) {
+    return "";
+  }
+
+  const fileMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (fileMatch) {
+    return "https://drive.google.com/thumbnail?id=" + fileMatch[1] + "&sz=w1000";
+  }
+
+  const idMatch = url.match(/[?&]id=([^&]+)/);
+  if (url.indexOf("drive.google.com") !== -1 && idMatch) {
+    return "https://drive.google.com/thumbnail?id=" + idMatch[1] + "&sz=w1000";
+  }
+
+  return url;
 }
 
 function createOrder(payload) {
@@ -120,9 +157,6 @@ function createOrder(payload) {
   const order = {
     id: createOrderId(),
     buyerName: String(payload.buyerName),
-    department: String(payload.department || ""),
-    contact: String(payload.contact || ""),
-    note: String(payload.note || ""),
     items: payload.items,
     total: Number(payload.total || 0),
     createdAt: new Date().toISOString()
@@ -131,9 +165,6 @@ function createOrder(payload) {
   getSheet(SHEETS.orders).appendRow([
     order.id,
     order.buyerName,
-    order.department,
-    order.contact,
-    order.note,
     JSON.stringify(order.items),
     order.total,
     order.createdAt
@@ -206,9 +237,6 @@ function listOrders() {
   return readObjects(SHEETS.orders).map((order) => ({
     id: String(order.id),
     buyerName: String(order.buyerName || ""),
-    department: String(order.department || ""),
-    contact: String(order.contact || ""),
-    note: String(order.note || ""),
     items: parseJson(order.itemsJson, []),
     total: Number(order.total || 0),
     createdAt: String(order.createdAt || "")
