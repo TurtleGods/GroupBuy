@@ -121,6 +121,15 @@
           </button>
         </div>
 
+        <form class="panel admin-login" id="adminLoginForm">
+          <label>
+            管理密碼
+            <input name="adminPassword" type="password" autocomplete="current-password" required placeholder="輸入管理密碼">
+          </label>
+          <button class="primary-button" type="submit">進入管理頁</button>
+        </form>
+
+        <div class="admin-content is-locked" id="adminContent">
         <div class="metrics">
           <div class="metric">
             <span>訂單數</span>
@@ -180,6 +189,7 @@
             </table>
           </div>
         </section>
+        </div>
       </section>
     </main>
 

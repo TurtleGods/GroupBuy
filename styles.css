@@ -313,6 +313,16 @@ select {
   gap: 1rem;
 }
 
+.admin-login {
+  display: grid;
+  gap: 1rem;
+  max-width: 28rem;
+}
+
+.admin-content.is-locked {
+  display: none;
+}
+
 .metric {
   padding: 1rem;
 }

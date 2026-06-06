@@ -42,16 +42,28 @@ function route(action, payload) {
     return createPayment(payload);
   }
   if (action === "dashboard") {
+    requireAdmin(payload.adminPassword);
     return {
       orders: listOrders(),
       payments: listPayments()
     };
   }
   if (action === "confirmPayment") {
+    requireAdmin(payload.adminPassword);
     return confirmPayment(payload.paymentId);
   }
 
   throw new Error("Unknown action: " + action);
+}
+
+function requireAdmin(adminPassword) {
+  const expected = PropertiesService.getScriptProperties().getProperty("ADMIN_PASSWORD");
+  if (!expected) {
+    throw new Error("ADMIN_PASSWORD is not configured");
+  }
+  if (String(adminPassword || "") !== expected) {
+    throw new Error("Unauthorized");
+  }
 }
 
 function ensureSheets() {

@@ -45,7 +45,8 @@
     products: [],
     orders: [],
     payments: [],
-    cart: new Map()
+    cart: new Map(),
+    adminPassword: sessionStorage.getItem("groupbuy.adminPassword") || ""
   };
 
   const storage = {
@@ -286,13 +287,39 @@
       formElement.reset();
       showToast("付款回報已送出，狀態為待確認。");
     });
+
+    $("#adminLoginForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      state.adminPassword = String(form.get("adminPassword") || "");
+      sessionStorage.setItem("groupbuy.adminPassword", state.adminPassword);
+      await loadDashboard();
+    });
   }
 
   async function loadDashboard() {
-    const data = await api.request("dashboard");
-    state.orders = data.orders || [];
-    state.payments = data.payments || [];
-    renderDashboard();
+    if (!state.adminPassword) {
+      setAdminLocked(true);
+      return;
+    }
+
+    try {
+      const data = await api.request("dashboard", { adminPassword: state.adminPassword });
+      state.orders = data.orders || [];
+      state.payments = data.payments || [];
+      setAdminLocked(false);
+      renderDashboard();
+    } catch (error) {
+      state.adminPassword = "";
+      sessionStorage.removeItem("groupbuy.adminPassword");
+      setAdminLocked(true);
+      showToast(error.message === "Unauthorized" ? "管理密碼不正確。" : error.message);
+    }
+  }
+
+  function setAdminLocked(isLocked) {
+    $("#adminLoginForm").style.display = isLocked ? "grid" : "none";
+    $("#adminContent").classList.toggle("is-locked", isLocked);
   }
 
   function renderDashboard() {
@@ -374,7 +401,10 @@
 
     document.querySelectorAll("[data-payment-id]").forEach((button) => {
       button.addEventListener("click", async () => {
-        await api.request("confirmPayment", { paymentId: button.dataset.paymentId });
+        await api.request("confirmPayment", {
+          paymentId: button.dataset.paymentId,
+          adminPassword: state.adminPassword
+        });
         showToast("付款已確認。");
         loadDashboard();
       });
@@ -406,7 +436,11 @@
 
   function bindActions() {
     $("#refreshProducts").addEventListener("click", () => loadProducts().then(() => showToast("商品已更新。")));
-    $("#refreshAdmin").addEventListener("click", () => loadDashboard().then(() => showToast("統計已更新。")));
+    $("#refreshAdmin").addEventListener("click", () => loadDashboard().then(() => {
+      if (state.adminPassword) {
+        showToast("統計已更新。");
+      }
+    }));
   }
 
   async function init() {
