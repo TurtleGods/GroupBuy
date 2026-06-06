@@ -177,9 +177,12 @@
       .map((product) => {
         const qty = state.cart.get(product.id) || 0;
         const initial = product.name.slice(0, 1);
+        const productMedia = product.imageUrl
+          ? `<img class="product-image" src="${escapeAttribute(product.imageUrl)}" alt="${escapeAttribute(product.name)}" loading="lazy">`
+          : `<div class="product-art" style="background:${product.color || "#1d6b73"}">${escapeHtml(initial)}</div>`;
         return `
           <article class="product-card">
-            <div class="product-art" style="background:${product.color || "#1d6b73"}">${initial}</div>
+            ${productMedia}
             <div class="product-body">
               <h3>${escapeHtml(product.name)}</h3>
               <p>${escapeHtml(product.description || "")}</p>

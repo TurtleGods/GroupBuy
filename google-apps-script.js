@@ -5,7 +5,7 @@ const SHEETS = {
 };
 
 const HEADERS = {
-  Products: ["id", "name", "description", "price", "deadline", "color", "active"],
+  Products: ["id", "name", "description", "price", "deadline", "color", "imageUrl", "active"],
   Orders: ["id", "buyerName", "department", "contact", "note", "itemsJson", "total", "createdAt"],
   Payments: ["id", "orderId", "payerName", "amount", "method", "paidAt", "reference", "proofUrl", "status", "createdAt"]
 };
@@ -64,7 +64,11 @@ function ensureSheets() {
     }
 
     const headers = HEADERS[sheetName];
-    const current = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+    let current = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+    if (sheetName === SHEETS.products && current[6] === "active" && current[7] !== "active") {
+      sheet.insertColumnBefore(7);
+      current = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+    }
     const missingHeaders = headers.some((header, index) => current[index] !== header);
     if (missingHeaders) {
       sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -81,12 +85,14 @@ function seedProductsIfEmpty() {
     return;
   }
 
-  sheet.getRange(2, 1, 4, HEADERS.Products.length).setValues([
+  const rows = [
     ["p001", "手作蛋黃酥", "六入禮盒，到貨日可統一取貨。", 420, "6/12 中午截止", "#1d6b73", true],
     ["p002", "冷泡茶組", "一組 10 包，無糖，辦公室冰箱友善。", 260, "6/10 下班前截止", "#6d7f32", true],
     ["p003", "咖啡濾掛包", "綜合風味 20 入，可備註偏好。", 350, "6/14 晚上截止", "#81533a", true],
     ["p004", "水果優格杯", "週五下午配送，需冷藏。", 95, "每週三截止", "#b6452c", true]
-  ]);
+  ];
+  const normalizedRows = rows.map((row) => row.length === 7 ? row.slice(0, 6).concat([""], row.slice(6)) : row);
+  sheet.getRange(2, 1, normalizedRows.length, HEADERS.Products.length).setValues(normalizedRows);
 }
 
 function listProducts() {
@@ -98,7 +104,8 @@ function listProducts() {
       description: String(product.description || ""),
       price: Number(product.price || 0),
       deadline: String(product.deadline || ""),
-      color: String(product.color || "#1d6b73")
+      color: String(product.color || "#1d6b73"),
+      imageUrl: String(product.imageUrl || "")
     }));
 }
 
