@@ -169,18 +169,24 @@
   function bindTabs() {
     document.querySelectorAll(".tab").forEach((button) => {
       button.addEventListener("click", () => {
-        document.querySelectorAll(".tab").forEach((tab) => tab.classList.remove("is-active"));
-        document.querySelectorAll(".view").forEach((view) => view.classList.remove("is-active"));
-        button.classList.add("is-active");
-        $(`#${button.dataset.view}View`).classList.add("is-active");
-        if (button.dataset.view === "payment") {
-          loadPublicBoard();
-        }
-        if (button.dataset.view === "admin") {
-          loadDashboard();
-        }
+        activateView(button.dataset.view);
       });
     });
+  }
+
+  function activateView(viewName) {
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.classList.toggle("is-active", tab.dataset.view === viewName);
+    });
+    document.querySelectorAll(".view").forEach((view) => {
+      view.classList.toggle("is-active", view.id === `${viewName}View`);
+    });
+    if (viewName === "payment") {
+      loadPublicBoard();
+    }
+    if (viewName === "admin") {
+      loadDashboard();
+    }
   }
 
   async function loadProducts() {
@@ -285,6 +291,8 @@
       renderProducts();
       updateCartSummary();
       await loadPublicBoard();
+      prefillPaymentForm(order);
+      activateView("payment");
       showToast(`訂單已建立：${order.id}`);
     });
 
@@ -345,6 +353,19 @@
       state.publicPayments = [];
       renderPaymentOrders(error.message);
     }
+  }
+
+  function prefillPaymentForm(order) {
+    const form = $("#paymentForm");
+    if (!form || !order) {
+      return;
+    }
+
+    form.elements.orderId.value = order.id || "";
+    form.elements.payerName.value = order.buyerName || "";
+    form.elements.amount.value = Number(order.total || 0) || "";
+    form.elements.reference.value = "";
+    form.elements.method.value = "bank";
   }
 
   function setAdminLocked(isLocked) {
@@ -534,7 +555,6 @@
   function methodLabel(method) {
     return {
       bank: "匯款",
-      line_pay: "Line Pay",
       jkopay: "街口支付",
       taiwan_pay: "台灣 Pay",
       cash: "現金"

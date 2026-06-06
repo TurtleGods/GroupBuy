@@ -11,7 +11,7 @@
   <body>
     <header class="app-header">
       <div class="brand-block">
-        <div class="brand-lockup" aria-label="Pigeon Packet Reserve">
+        <a class="brand-lockup" href="https://www.pigeon-packet.com/" aria-label="前往 Pigeon Packet 官方網站">
           <span class="brand-mark">
             <img src="logo.svg" alt="Pigeon Packet 標誌">
           </span>
@@ -19,8 +19,7 @@
             <strong>Pigeon Packet</strong>
             <small>鴿子封包有限公司</small>
           </span>
-        </div>
-        <p class="eyebrow">Reserve Service</p>
+        </a>
         <h1>鴿子封包團購</h1>
       </div>
       <nav class="tabs" aria-label="主要功能">
@@ -71,8 +70,37 @@
         <div class="section-head">
           <div>
             <h2 id="paymentTitle">付款回報</h2>
+            <p>下單完成後，先依下方付款資訊付款，再送出回報。</p>
           </div>
         </div>
+
+        <section class="panel payment-info-panel">
+          <div class="payment-info-copy">
+            <h3>付款資訊</h3>
+            <dl class="payment-info-list">
+              <div>
+                <dt>銀行名稱</dt>
+                <dd>示意聯合商業銀行</dd>
+              </div>
+              <div>
+                <dt>戶名</dt>
+                <dd>王小明</dd>
+              </div>
+              <div>
+                <dt>帳號</dt>
+                <dd>1234-567-890123</dd>
+              </div>
+              <div>
+                <dt>付款提醒</dt>
+                <dd>請依訂單金額付款，付款後回到下方填寫回報。</dd>
+              </div>
+            </dl>
+          </div>
+          <figure class="payment-qr">
+            <img src="payment-qr-sample.svg" alt="示意銀行付款 QR Code">
+            <figcaption>付款 QR Code 範例</figcaption>
+          </figure>
+        </section>
 
         <form class="panel" id="paymentForm">
           <div class="form-grid">
@@ -92,7 +120,6 @@
               付款方式
               <select name="method" required>
                 <option value="bank">匯款</option>
-                <option value="line_pay">Line Pay</option>
                 <option value="jkopay">街口支付</option>
                 <option value="taiwan_pay">台灣 Pay</option>
                 <option value="cash">現金</option>
@@ -202,13 +229,13 @@
     </main>
 
     <footer class="site-footer">
-      <div class="footer-brand">
+      <a class="footer-brand" href="https://www.pigeon-packet.com/" aria-label="前往 Pigeon Packet 官方網站">
         <img src="logo.svg" alt="" aria-hidden="true">
         <div>
           <strong>Pigeon Packet</strong>
           <span>技術交付夥伴</span>
         </div>
-      </div>
+      </a>
       <a href="mailto:pigeon@pigeon-packet.com">pigeon@pigeon-packet.com</a>
     </footer>
 
