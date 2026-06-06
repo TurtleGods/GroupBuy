@@ -7,7 +7,7 @@ const SHEETS = {
 const HEADERS = {
   Products: ["id", "name", "description", "price", "deadline", "color", "imageUrl", "active"],
   Orders: ["id", "buyerName", "itemsJson", "total", "createdAt"],
-  Payments: ["id", "orderId", "payerName", "amount", "method", "paidAt", "reference", "proofUrl", "status", "createdAt"]
+  Payments: ["id", "orderId", "payerName", "amount", "method", "reference", "status", "createdAt"]
 };
 
 function doPost(event) {
@@ -58,6 +58,10 @@ function route(action, payload) {
     requireAdmin(payload.adminPassword);
     return confirmPayment(payload.paymentId);
   }
+  if (action === "deleteOrder") {
+    requireAdmin(payload.adminPassword);
+    return deleteOrder(payload.orderId);
+  }
 
   throw new Error("Unknown action: " + action);
 }
@@ -83,6 +87,9 @@ function ensureSheets() {
 
     if (sheetName === SHEETS.orders) {
       migrateOrdersSheet(sheet);
+    }
+    if (sheetName === SHEETS.payments) {
+      migratePaymentsSheet(sheet);
     }
 
     const headers = HEADERS[sheetName];
@@ -112,6 +119,21 @@ function migrateOrdersSheet(sheet) {
   const isOldOrderSheet = oldHeaders.every((header, index) => current[index] === header);
   if (isOldOrderSheet) {
     sheet.deleteColumns(3, 3);
+  }
+}
+
+function migratePaymentsSheet(sheet) {
+  const lastColumn = sheet.getLastColumn();
+  if (lastColumn < 10) {
+    return;
+  }
+
+  const current = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const oldHeaders = ["id", "orderId", "payerName", "amount", "method", "paidAt", "reference", "proofUrl", "status", "createdAt"];
+  const isOldPaymentSheet = oldHeaders.every((header, index) => current[index] === header);
+  if (isOldPaymentSheet) {
+    sheet.deleteColumn(8);
+    sheet.deleteColumn(6);
   }
 }
 
@@ -206,9 +228,7 @@ function createPayment(payload) {
     payerName: String(payload.payerName),
     amount: Number(payload.amount || 0),
     method: String(payload.method || ""),
-    paidAt: String(payload.paidAt || ""),
     reference: String(payload.reference || ""),
-    proofUrl: String(payload.proofUrl || ""),
     status: "pending",
     createdAt: new Date().toISOString()
   };
@@ -219,9 +239,7 @@ function createPayment(payload) {
     payment.payerName,
     payment.amount,
     payment.method,
-    payment.paidAt,
     payment.reference,
-    payment.proofUrl,
     payment.status,
     payment.createdAt
   ]);
@@ -251,6 +269,20 @@ function confirmPayment(paymentId) {
   throw new Error("payment not found");
 }
 
+function deleteOrder(orderId) {
+  if (!orderId) {
+    throw new Error("orderId is required");
+  }
+
+  const orderDeleted = deleteRowsByValue(getSheet(SHEETS.orders), "id", orderId);
+  if (!orderDeleted) {
+    throw new Error("order not found");
+  }
+
+  deleteRowsByValue(getSheet(SHEETS.payments), "orderId", orderId);
+  return { ok: true };
+}
+
 function listOrders() {
   return readObjects(SHEETS.orders).map((order) => ({
     id: String(order.id),
@@ -268,9 +300,7 @@ function listPayments() {
     payerName: String(payment.payerName || ""),
     amount: Number(payment.amount || 0),
     method: String(payment.method || ""),
-    paidAt: String(payment.paidAt || ""),
     reference: String(payment.reference || ""),
-    proofUrl: String(payment.proofUrl || ""),
     status: String(payment.status || "pending"),
     createdAt: String(payment.createdAt || "")
   })).reverse();
@@ -300,6 +330,25 @@ function readObjects(sheetName) {
     });
     return object;
   });
+}
+
+function deleteRowsByValue(sheet, headerName, value) {
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0] || [];
+  const targetIndex = headers.indexOf(headerName);
+  if (targetIndex === -1) {
+    throw new Error("Missing header: " + headerName);
+  }
+
+  const rowsToDelete = [];
+  for (let row = 1; row < rows.length; row += 1) {
+    if (String(rows[row][targetIndex]) === String(value)) {
+      rowsToDelete.push(row + 1);
+    }
+  }
+
+  rowsToDelete.reverse().forEach((rowNumber) => sheet.deleteRow(rowNumber));
+  return rowsToDelete.length > 0;
 }
 
 function getSheet(sheetName) {

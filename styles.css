@@ -545,6 +545,11 @@ th {
   color: white;
 }
 
+.small-button.danger {
+  background: #a93422;
+  color: white;
+}
+
 .toast {
   position: fixed;
   right: 1rem;

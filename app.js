@@ -134,6 +134,15 @@
       storage.set("groupbuy.payments", updated);
       return Promise.resolve({ ok: true });
     }
+    if (action === "deleteOrder") {
+      const orderExists = orders.some((order) => order.id === payload.orderId);
+      if (!orderExists) {
+        return Promise.reject(new Error("找不到訂單"));
+      }
+      storage.set("groupbuy.orders", orders.filter((order) => order.id !== payload.orderId));
+      storage.set("groupbuy.payments", payments.filter((payment) => payment.orderId !== payload.orderId));
+      return Promise.resolve({ ok: true });
+    }
 
     return Promise.reject(new Error("未知操作"));
   }
@@ -288,9 +297,7 @@
         payerName: form.get("payerName").trim(),
         amount: Number(form.get("amount")),
         method: form.get("method"),
-        paidAt: form.get("paidAt"),
-        reference: form.get("reference").trim(),
-        proofUrl: form.get("proofUrl").trim()
+        reference: form.get("reference").trim()
       };
       await api.request("createPayment", payload);
       formElement.reset();
@@ -397,14 +404,38 @@
             <td>${(order.items || []).map((item) => `${escapeHtml(item.name)} x ${item.qty}`).join("<br>")}</td>
             <td>${money.format(Number(order.total || 0))}</td>
             <td><span class="status ${status}">${status === "confirmed" ? "已付款" : "未結清"}</span></td>
+            <td>
+              <button class="small-button danger" type="button" data-delete-order-id="${escapeAttribute(order.id)}">刪除</button>
+            </td>
           </tr>
         `;
       })
-      .join("") || `<tr><td colspan="5">目前沒有訂單</td></tr>`;
+      .join("") || `<tr><td colspan="6">目前沒有訂單</td></tr>`;
+
+    document.querySelectorAll("[data-delete-order-id]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const orderId = button.dataset.deleteOrderId;
+        const targetOrder = state.orders.find((order) => order.id === orderId);
+        const orderSummary = targetOrder ? `${targetOrder.buyerName} / ${orderId}` : orderId;
+        if (!window.confirm(`確定要刪除訂單 ${orderSummary}？相關付款回報也會一起刪除。`)) {
+          return;
+        }
+
+        await api.request("deleteOrder", {
+          orderId,
+          adminPassword: state.adminPassword
+        });
+        showToast(`訂單已刪除：${orderId}`);
+        await loadDashboard();
+        await loadPublicBoard();
+      });
+    });
   }
 
   function renderPayments() {
-    $("#paymentList").innerHTML = state.payments
+    const pendingPayments = state.payments.filter((payment) => payment.status !== "confirmed");
+
+    $("#paymentList").innerHTML = pendingPayments
       .map((payment) => `
         <article class="payment-row">
           <header>
@@ -414,13 +445,12 @@
             </span>
           </header>
           <p>${escapeHtml(payment.orderId)} · ${methodLabel(payment.method)} · ${escapeHtml(payment.reference || "無備註")}</p>
-          ${payment.proofUrl ? `<p><a href="${escapeAttribute(payment.proofUrl)}" target="_blank" rel="noreferrer">查看截圖</a></p>` : ""}
           <div class="payment-actions">
             <button class="small-button confirm" type="button" data-payment-id="${escapeAttribute(payment.id)}" ${payment.status === "confirmed" ? "disabled" : ""}>確認</button>
           </div>
         </article>
       `)
-      .join("") || `<p>目前沒有付款回報</p>`;
+      .join("") || `<p>目前沒有待確認付款</p>`;
 
     document.querySelectorAll("[data-payment-id]").forEach((button) => {
       button.addEventListener("click", async () => {
@@ -488,9 +518,7 @@
         const form = $("#paymentForm");
         form.elements.orderId.value = button.dataset.fillOrderId || "";
         form.elements.amount.value = button.dataset.fillOrderTotal || "";
-        if (!form.elements.payerName.value) {
-          form.elements.payerName.value = button.dataset.fillBuyerName || "";
-        }
+        form.elements.payerName.value = button.dataset.fillBuyerName || "";
         form.elements.orderId.focus();
         showToast(`已帶入 ${button.dataset.fillOrderId}`);
       });
