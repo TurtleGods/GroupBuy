@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>團購管家</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Office Group Buy</p>
+        <h1>團購管家</h1>
+      </div>
+      <nav class="tabs" aria-label="主要功能">
+        <button class="tab is-active" data-view="shop" type="button">下單</button>
+        <button class="tab" data-view="payment" type="button">付款回報</button>
+        <button class="tab" data-view="admin" type="button">統計</button>
+      </nav>
+    </header>
+
+    <main>
+      <section class="notice" id="connectionNotice">
+        目前使用本機示範資料。設定 Google Apps Script Web App URL 後，就會改寫入 Google Sheet。
+      </section>
+
+      <section class="view is-active" id="shopView" aria-labelledby="shopTitle">
+        <div class="section-head">
+          <div>
+            <h2 id="shopTitle">本期團購</h2>
+            <p>選商品、填資料，送出後會產生訂單編號。</p>
+          </div>
+          <button class="ghost-button" id="refreshProducts" type="button" title="重新整理商品">
+            <span aria-hidden="true">↻</span>
+            重新整理
+          </button>
+        </div>
+
+        <div class="catalog" id="productList"></div>
+
+        <form class="panel order-panel" id="orderForm">
+          <h3>訂購資料</h3>
+          <div class="form-grid">
+            <label>
+              姓名
+              <input name="buyerName" autocomplete="name" required placeholder="例如：王小明">
+            </label>
+            <label>
+              部門 / 分機
+              <input name="department" placeholder="例如：行銷部 1234">
+            </label>
+            <label>
+              聯絡方式
+              <input name="contact" placeholder="Line ID 或 Email">
+            </label>
+            <label>
+              備註
+              <input name="note" placeholder="少冰、不要辣、到貨通知等">
+            </label>
+          </div>
+          <div class="order-summary">
+            <div>
+              <span>品項數</span>
+              <strong id="itemCount">0</strong>
+            </div>
+            <div>
+              <span>總金額</span>
+              <strong id="orderTotal">NT$0</strong>
+            </div>
+            <button class="primary-button" type="submit">送出訂單</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="view" id="paymentView" aria-labelledby="paymentTitle">
+        <div class="section-head">
+          <div>
+            <h2 id="paymentTitle">付款回報</h2>
+            <p>同事付款後填這裡，你確認後統計就會更新。</p>
+          </div>
+        </div>
+
+        <form class="panel" id="paymentForm">
+          <div class="form-grid">
+            <label>
+              訂單編號
+              <input name="orderId" required placeholder="例如：GB-20260606-001">
+            </label>
+            <label>
+              姓名
+              <input name="payerName" required placeholder="付款人姓名">
+            </label>
+            <label>
+              付款金額
+              <input name="amount" required inputmode="numeric" pattern="[0-9]+" placeholder="例如：560">
+            </label>
+            <label>
+              付款方式
+              <select name="method" required>
+                <option value="bank">匯款</option>
+                <option value="line_pay">Line Pay</option>
+                <option value="jkopay">街口支付</option>
+                <option value="taiwan_pay">台灣 Pay</option>
+                <option value="cash">現金</option>
+              </select>
+            </label>
+            <label>
+              付款時間
+              <input name="paidAt" type="datetime-local">
+            </label>
+            <label>
+              末五碼 / 交易備註
+              <input name="reference" placeholder="匯款末五碼或交易描述">
+            </label>
+          </div>
+          <label>
+            截圖連結
+            <input name="proofUrl" placeholder="Google Drive、Imgur 或公司內部圖片連結">
+          </label>
+          <button class="primary-button" type="submit">送出付款回報</button>
+        </form>
+      </section>
+
+      <section class="view" id="adminView" aria-labelledby="adminTitle">
+        <div class="section-head">
+          <div>
+            <h2 id="adminTitle">統計與確認</h2>
+            <p>查看商品總數、付款狀態，以及待確認款項。</p>
+          </div>
+          <button class="ghost-button" id="refreshAdmin" type="button" title="重新整理統計">
+            <span aria-hidden="true">↻</span>
+            重新整理
+          </button>
+        </div>
+
+        <div class="metrics">
+          <div class="metric">
+            <span>訂單數</span>
+            <strong id="metricOrders">0</strong>
+          </div>
+          <div class="metric">
+            <span>應收</span>
+            <strong id="metricDue">NT$0</strong>
+          </div>
+          <div class="metric">
+            <span>已確認</span>
+            <strong id="metricPaid">NT$0</strong>
+          </div>
+          <div class="metric">
+            <span>待確認</span>
+            <strong id="metricPending">0</strong>
+          </div>
+        </div>
+
+        <div class="admin-grid">
+          <section class="panel">
+            <h3>商品彙總</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>商品</th>
+                    <th>數量</th>
+                    <th>小計</th>
+                  </tr>
+                </thead>
+                <tbody id="productSummary"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h3>付款回報</h3>
+            <div class="payment-list" id="paymentList"></div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <h3>訂單明細</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>訂單</th>
+                  <th>姓名</th>
+                  <th>品項</th>
+                  <th>金額</th>
+                  <th>狀態</th>
+                </tr>
+              </thead>
+              <tbody id="orderList"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
