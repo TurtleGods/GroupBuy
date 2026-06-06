@@ -45,6 +45,8 @@
     products: [],
     orders: [],
     payments: [],
+    publicOrders: [],
+    publicPayments: [],
     cart: new Map(),
     adminPassword: sessionStorage.getItem("groupbuy.adminPassword") || ""
   };
@@ -112,6 +114,16 @@
       storage.set("groupbuy.payments", [payment, ...payments]);
       return Promise.resolve(payment);
     }
+    if (action === "publicBoard") {
+      return Promise.resolve({
+        orders,
+        payments: payments.map((payment) => ({
+          orderId: payment.orderId,
+          amount: Number(payment.amount || 0),
+          status: payment.status || "pending"
+        }))
+      });
+    }
     if (action === "dashboard") {
       return Promise.resolve({ orders, payments });
     }
@@ -145,14 +157,6 @@
     window.setTimeout(() => toast.classList.remove("is-visible"), 3200);
   }
 
-  function setConnectedNotice() {
-    const notice = $("#connectionNotice");
-    if (config.apiUrl) {
-      notice.textContent = "已連線到 Google Sheet。訂單與付款回報會寫入試算表。";
-      notice.classList.add("is-connected");
-    }
-  }
-
   function bindTabs() {
     document.querySelectorAll(".tab").forEach((button) => {
       button.addEventListener("click", () => {
@@ -160,6 +164,9 @@
         document.querySelectorAll(".view").forEach((view) => view.classList.remove("is-active"));
         button.classList.add("is-active");
         $(`#${button.dataset.view}View`).classList.add("is-active");
+        if (button.dataset.view === "payment") {
+          loadPublicBoard();
+        }
         if (button.dataset.view === "admin") {
           loadDashboard();
         }
@@ -267,6 +274,8 @@
       state.cart.clear();
       formElement.reset();
       renderProducts();
+      updateCartSummary();
+      await loadPublicBoard();
       showToast(`訂單已建立：${order.id}`);
     });
 
@@ -285,6 +294,7 @@
       };
       await api.request("createPayment", payload);
       formElement.reset();
+      await loadPublicBoard();
       showToast("付款回報已送出，狀態為待確認。");
     });
 
@@ -314,6 +324,19 @@
       sessionStorage.removeItem("groupbuy.adminPassword");
       setAdminLocked(true);
       showToast(error.message === "Unauthorized" ? "管理密碼不正確。" : error.message);
+    }
+  }
+
+  async function loadPublicBoard() {
+    try {
+      const data = await api.request("publicBoard");
+      state.publicOrders = data.orders || [];
+      state.publicPayments = data.payments || [];
+      renderPaymentOrders();
+    } catch (error) {
+      state.publicOrders = [];
+      state.publicPayments = [];
+      renderPaymentOrders(error.message);
     }
   }
 
@@ -411,6 +434,75 @@
     });
   }
 
+  function renderPaymentOrders(errorMessage = "") {
+    const paymentOrderList = $("#paymentOrderList");
+    if (!paymentOrderList) {
+      return;
+    }
+
+    if (errorMessage) {
+      paymentOrderList.innerHTML = `<p class="helper-text">${escapeHtml(errorMessage)}</p>`;
+      return;
+    }
+
+    paymentOrderList.innerHTML = state.publicOrders
+      .map((order) => {
+        const paidAmount = state.publicPayments
+          .filter((payment) => payment.orderId === order.id && payment.status === "confirmed")
+          .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+        const pendingAmount = state.publicPayments
+          .filter((payment) => payment.orderId === order.id && payment.status !== "confirmed")
+          .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+        const orderTotal = Number(order.total || 0);
+        const status = paidAmount >= orderTotal ? "confirmed" : pendingAmount > 0 ? "pending" : "unpaid";
+        const statusLabel = status === "confirmed" ? "已付款" : status === "pending" ? "待確認" : "未回報";
+        return `
+          <article class="public-order-card">
+            <header>
+              <div>
+                <strong>${escapeHtml(order.buyerName)}</strong>
+                <p>${escapeHtml(order.id)}</p>
+              </div>
+              <span class="status ${status}">${statusLabel}</span>
+            </header>
+            <p class="public-order-items">${formatOrderItems(order.items)}</p>
+            <footer>
+              <strong>${money.format(orderTotal)}</strong>
+              <button
+                class="small-button"
+                type="button"
+                data-fill-order-id="${escapeAttribute(order.id)}"
+                data-fill-order-total="${escapeAttribute(orderTotal)}"
+                data-fill-buyer-name="${escapeAttribute(order.buyerName)}"
+              >
+                帶入付款表單
+              </button>
+            </footer>
+          </article>
+        `;
+      })
+      .join("") || `<p class="helper-text">目前還沒有訂單。</p>`;
+
+    document.querySelectorAll("[data-fill-order-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const form = $("#paymentForm");
+        form.elements.orderId.value = button.dataset.fillOrderId || "";
+        form.elements.amount.value = button.dataset.fillOrderTotal || "";
+        if (!form.elements.payerName.value) {
+          form.elements.payerName.value = button.dataset.fillBuyerName || "";
+        }
+        form.elements.orderId.focus();
+        showToast(`已帶入 ${button.dataset.fillOrderId}`);
+      });
+    });
+  }
+
+  function formatOrderItems(items) {
+    return (items || [])
+      .map((item) => `${escapeHtml(item.name)} x ${item.qty}`)
+      .join(" · ");
+  }
+
   function methodLabel(method) {
     return {
       bank: "匯款",
@@ -444,11 +536,11 @@
   }
 
   async function init() {
-    setConnectedNotice();
     bindTabs();
     bindForms();
     bindActions();
     await loadProducts();
+    await loadPublicBoard();
   }
 
   init().catch((error) => showToast(error.message));

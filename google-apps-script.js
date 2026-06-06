@@ -41,6 +41,12 @@ function route(action, payload) {
   if (action === "createPayment") {
     return createPayment(payload);
   }
+  if (action === "publicBoard") {
+    return {
+      orders: listOrders(),
+      payments: listPublicPayments()
+    };
+  }
   if (action === "dashboard") {
     requireAdmin(payload.adminPassword);
     return {
@@ -267,6 +273,14 @@ function listPayments() {
     proofUrl: String(payment.proofUrl || ""),
     status: String(payment.status || "pending"),
     createdAt: String(payment.createdAt || "")
+  })).reverse();
+}
+
+function listPublicPayments() {
+  return readObjects(SHEETS.payments).map((payment) => ({
+    orderId: String(payment.orderId || ""),
+    amount: Number(payment.amount || 0),
+    status: String(payment.status || "pending")
   })).reverse();
 }
 

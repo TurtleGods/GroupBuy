@@ -22,7 +22,6 @@
         </div>
         <p class="eyebrow">Reserve Service</p>
         <h1>Pigeon Packet Reserve</h1>
-        <p class="header-copy">內部團購預訂、付款回報與收款確認。</p>
       </div>
       <nav class="tabs" aria-label="主要功能">
         <button class="tab is-active" data-view="shop" type="button">下單</button>
@@ -32,10 +31,6 @@
     </header>
 
     <main>
-      <section class="notice" id="connectionNotice">
-        目前使用本機示範資料。設定 Google Apps Script Web App URL 後，就會改寫入 Google Sheet。
-      </section>
-
       <section class="view is-active" id="shopView" aria-labelledby="shopTitle">
         <div class="section-head">
           <div>
@@ -76,7 +71,6 @@
         <div class="section-head">
           <div>
             <h2 id="paymentTitle">付款回報</h2>
-            <p>同事付款後填這裡，你確認後統計就會更新。</p>
           </div>
         </div>
 
@@ -119,6 +113,15 @@
           </label>
           <button class="primary-button" type="submit">送出付款回報</button>
         </form>
+
+        <section class="panel">
+          <div class="section-head compact">
+            <div>
+              <h3>訂單列表</h3>
+            </div>
+          </div>
+          <div class="public-order-list" id="paymentOrderList"></div>
+        </section>
       </section>
 
       <section class="view" id="adminView" aria-labelledby="adminTitle">
