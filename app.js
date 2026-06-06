@@ -245,13 +245,14 @@
   function bindForms() {
     $("#orderForm").addEventListener("submit", async (event) => {
       event.preventDefault();
+      const formElement = event.currentTarget;
       const items = getCartItems();
       if (!items.length) {
         showToast("請先選擇至少一個商品。");
         return;
       }
 
-      const form = new FormData(event.currentTarget);
+      const form = new FormData(formElement);
       const payload = {
         buyerName: form.get("buyerName").trim(),
         department: form.get("department").trim(),
@@ -263,14 +264,15 @@
 
       const order = await api.request("createOrder", payload);
       state.cart.clear();
-      event.currentTarget.reset();
+      formElement.reset();
       renderProducts();
       showToast(`訂單已建立：${order.id}`);
     });
 
     $("#paymentForm").addEventListener("submit", async (event) => {
       event.preventDefault();
-      const form = new FormData(event.currentTarget);
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
       const payload = {
         orderId: form.get("orderId").trim(),
         payerName: form.get("payerName").trim(),
@@ -281,7 +283,7 @@
         proofUrl: form.get("proofUrl").trim()
       };
       await api.request("createPayment", payload);
-      event.currentTarget.reset();
+      formElement.reset();
       showToast("付款回報已送出，狀態為待確認。");
     });
   }
