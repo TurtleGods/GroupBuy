@@ -402,7 +402,7 @@ main {
 }
 
 .payment-checkout {
-  margin: 4.1rem auto 0;
+  margin: 0 auto;
   max-width: 34rem;
 }
 
@@ -420,10 +420,28 @@ main {
   box-shadow: none;
 }
 
-#paymentView > .section-head,
 #paymentView > .payment-info-panel,
 #paymentView > section.panel:not(.payment-info-panel) {
   display: none;
+}
+
+#paymentView > .section-head {
+  display: block;
+  max-width: 34rem;
+  margin: 2.65rem auto 1.8rem;
+  text-align: left;
+}
+
+#paymentView > .section-head h2 {
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+#paymentView > .section-head p {
+  margin-bottom: 0;
+  color: #9a9a9a;
+  font-size: 0.82rem;
 }
 
 .payment-checkout-panel {
@@ -437,7 +455,7 @@ main {
 
 .payment-checkout-panel .form-grid {
   grid-template-columns: 1fr;
-  gap: 2.45rem;
+  gap: 2.35rem;
 }
 
 .payment-checkout-panel label {
@@ -463,6 +481,11 @@ main {
   border-top: 1px solid #9a9a9a;
 }
 
+.payment-method-panel,
+.payment-note-panel {
+  margin-top: 0.8rem;
+}
+
 .payment-order-items {
   margin-top: 2.45rem;
   padding-top: 1.15rem;
@@ -473,10 +496,6 @@ main {
 
 .payment-order-items h3 {
   margin-bottom: 1.25rem;
-}
-
-.payment-method-grid {
-  margin-top: 1.85rem;
 }
 
 .payment-total-row {
@@ -502,10 +521,45 @@ main {
 .payment-submit-button {
   width: 100%;
   min-height: 2.2rem;
-  margin-top: 8.65rem;
+  margin-top: 2.75rem;
   border-radius: 6px;
   font-size: 0.85rem;
   font-weight: 500;
+}
+
+.transfer-info {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.7rem;
+  color: #111111;
+  font-size: 0.85rem;
+}
+
+.transfer-info-box {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.transfer-info-box p {
+  margin: 0;
+  min-height: 3rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #dddddd;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #111111;
+}
+
+.transfer-info-box span {
+  display: block;
+  color: #9a9a9a;
+  font-size: 0.78rem;
+}
+
+.transfer-info-box strong {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 400;
 }
 
 .confirmed-order-details {

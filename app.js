@@ -288,6 +288,9 @@
   }
 
   function bindForms() {
+    const paymentMethod = $("#paymentForm").elements.method;
+    paymentMethod.addEventListener("change", updatePaymentMethodView);
+
     $("#orderForm").addEventListener("submit", async (event) => {
       event.preventDefault();
       const formElement = event.currentTarget;
@@ -339,6 +342,7 @@
         showToast("現金付款資訊已送出。");
       } else {
         formElement.reset();
+        updatePaymentMethodView();
         renderPaymentCheckout(null);
         showToast("付款回報已送出，狀態為待確認。");
       }
@@ -396,8 +400,23 @@
     form.elements.payerName.value = order.buyerName || "";
     form.elements.amount.value = Number(order.total || 0) || "";
     form.elements.reference.value = "";
-    form.elements.method.value = "bank";
+    form.elements.method.value = "cash";
+    updatePaymentMethodView();
     renderPaymentCheckout(order);
+  }
+
+  function updatePaymentMethodView() {
+    const form = $("#paymentForm");
+    if (!form) {
+      return;
+    }
+
+    const isTransfer = form.elements.method.value === "bank";
+    $("#transferInfo").hidden = !isTransfer;
+    $("#paymentNotePanel").hidden = !isTransfer;
+    if (!isTransfer) {
+      form.elements.reference.value = "";
+    }
   }
 
   function renderPaymentCheckout(order) {

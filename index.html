@@ -100,7 +100,7 @@
         </section>
 
         <form class="payment-checkout" id="paymentForm">
-          <div class="panel payment-checkout-panel">
+          <div class="panel payment-checkout-panel payment-order-panel">
             <div class="form-grid">
               <label>
                 訂購人姓名
@@ -119,24 +119,32 @@
                 <strong id="paymentOrderTotal">0</strong>
               </div>
             </div>
-            <div class="form-grid payment-method-grid">
-              <input name="amount" type="hidden">
-              <label>
-                付款方式
-                <select name="method" required>
-                  <option value="bank">轉帳</option>
-                  <option value="jkopay">街口支付</option>
-                  <option value="taiwan_pay">台灣 Pay</option>
-                  <option value="cash">現金</option>
-                </select>
-              </label>
-              <label>
-                匯款帳號/備註
-                <input name="reference" placeholder="99865">
-              </label>
+          </div>
+          <div class="panel payment-checkout-panel payment-method-panel">
+            <input name="amount" type="hidden">
+            <label>
+              付款方式
+              <select name="method" required>
+                <option value="cash">現金</option>
+                <option value="bank">轉帳</option>
+              </select>
+            </label>
+            <div class="transfer-info" id="transferInfo" hidden>
+              <span>匯款資訊</span>
+              <div class="transfer-info-box">
+                <p><span>銀行</span><strong>802永豐大戶</strong></p>
+                <p><span>帳號</span><strong>809999976568</strong></p>
+                <p><span>戶名</span><strong>王大明</strong></p>
+              </div>
             </div>
           </div>
-          <button class="primary-button payment-submit-button" type="submit">送出</button>
+          <div class="panel payment-checkout-panel payment-note-panel" id="paymentNotePanel" hidden>
+            <label>
+              匯款帳號/備註
+              <input name="reference" placeholder="99865">
+            </label>
+          </div>
+          <button class="primary-button payment-submit-button" type="submit">送出訂單</button>
         </form>
 
         <section class="panel">
