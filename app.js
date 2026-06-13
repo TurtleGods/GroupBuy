@@ -48,6 +48,7 @@
     publicOrders: [],
     publicPayments: [],
     cart: new Map(),
+    currentOrder: null,
     adminPassword: sessionStorage.getItem("groupbuy.adminPassword") || ""
   };
 
@@ -108,7 +109,7 @@
       const payment = {
         ...payload,
         id: `PAY-${Date.now()}`,
-        status: "pending",
+        status: payload.status || (payload.method === "cash" ? "confirmed" : "pending"),
         createdAt: new Date().toISOString()
       };
       storage.set("groupbuy.payments", [payment, ...payments]);
@@ -183,6 +184,9 @@
     });
     if (viewName === "payment") {
       loadPublicBoard();
+    }
+    if (viewName === "order") {
+      loadPublicBoard().then(() => renderOrderConfirmation(state.currentOrder || state.publicOrders[0]));
     }
     if (viewName === "admin") {
       loadDashboard();
@@ -301,6 +305,7 @@
       };
 
       const order = await api.request("createOrder", payload);
+      state.currentOrder = order;
       state.cart.clear();
       formElement.reset();
       renderProducts();
@@ -323,9 +328,20 @@
         reference: form.get("reference").trim()
       };
       await api.request("createPayment", payload);
-      formElement.reset();
       await loadPublicBoard();
-      showToast("付款回報已送出，狀態為待確認。");
+      const targetOrder = state.publicOrders.find((order) => order.id === payload.orderId) || state.currentOrder;
+      if (targetOrder) {
+        state.currentOrder = targetOrder;
+      }
+      if (payload.method === "cash") {
+        renderOrderConfirmation(state.currentOrder);
+        activateView("order");
+        showToast("現金付款資訊已送出。");
+      } else {
+        formElement.reset();
+        renderPaymentCheckout(null);
+        showToast("付款回報已送出，狀態為待確認。");
+      }
     });
 
     $("#adminLoginForm").addEventListener("submit", async (event) => {
@@ -381,6 +397,57 @@
     form.elements.amount.value = Number(order.total || 0) || "";
     form.elements.reference.value = "";
     form.elements.method.value = "bank";
+    renderPaymentCheckout(order);
+  }
+
+  function renderPaymentCheckout(order) {
+    const itemRows = $("#paymentOrderItems");
+    const total = $("#paymentOrderTotal");
+    if (!itemRows || !total) {
+      return;
+    }
+
+    itemRows.innerHTML = order ? renderOrderItemRows(order.items) : `<p class="helper-text">尚未選擇訂單</p>`;
+    total.textContent = order ? plainAmount(order.total) : "0";
+  }
+
+  function renderOrderConfirmation(order) {
+    const itemRows = $("#confirmedOrderItems");
+    if (!itemRows) {
+      return;
+    }
+
+    if (!order) {
+      itemRows.innerHTML = `<p class="helper-text">尚未選擇訂單</p>`;
+      $("#confirmedOrderTotal").textContent = "0";
+      $("#confirmedBuyerName").textContent = "-";
+      $("#confirmedOrderId").textContent = "-";
+      return;
+    }
+
+    itemRows.innerHTML = renderOrderItemRows(order.items);
+    $("#confirmedOrderTotal").textContent = plainAmount(order.total);
+    $("#confirmedBuyerName").textContent = order.buyerName || "-";
+    $("#confirmedOrderId").textContent = order.id || "-";
+  }
+
+  function renderOrderItemRows(items = []) {
+    return items.length
+      ? items
+          .map((item) => `
+            <div class="mobile-order-row">
+              <span>${escapeHtml(item.name)}</span>
+              <span>${money.format(Number(item.price || 0))}</span>
+              <span>x${Number(item.qty || 0)}</span>
+              <span>${money.format(Number(item.subtotal || 0))}</span>
+            </div>
+          `)
+          .join("")
+      : `<p class="helper-text">尚未選擇品項</p>`;
+  }
+
+  function plainAmount(value) {
+    return String(Number(value || 0));
   }
 
   function setAdminLocked(isLocked) {

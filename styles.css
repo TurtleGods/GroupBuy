@@ -287,7 +287,14 @@ main {
 }
 
 .product-card {
-  overflow: hidden;
+  display: grid;
+  gap: 0;
+  padding: 9px;
+  border-color: #111111;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .product-art {
@@ -308,56 +315,217 @@ main {
 }
 
 .product-body {
-  padding: 1rem;
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 0.75fr) minmax(6.5rem, 1.7fr);
+  grid-template-areas:
+    "title title"
+    "desc desc"
+    "meta qty";
+  row-gap: 0.7rem;
+  column-gap: 0.8rem;
+  padding: 0.75rem 1rem 1.1rem;
+}
+
+.product-body h3 {
+  grid-area: title;
+  margin-bottom: 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.product-body p {
+  grid-area: desc;
+  margin-bottom: 1.95rem;
+  color: #9a9a9a;
+  font-size: 0.8rem;
+  line-height: 1.15;
 }
 
 .product-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  align-items: center;
-  margin: 0.75rem 0 1rem;
+  grid-area: meta;
+  display: block;
+  margin: 0;
+  align-self: center;
 }
 
 .price {
-  font-size: 1.2rem;
+  color: #111111;
+  font-size: 1.05rem;
   font-weight: 800;
 }
 
 .deadline {
-  color: var(--muted);
-  font-size: 0.88rem;
+  display: none;
 }
 
 .qty-control {
   display: grid;
-  grid-template-columns: 2.5rem 1fr 2.5rem;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  grid-area: qty;
+  grid-template-columns: 2.9rem 1fr 2.9rem;
+  align-self: center;
+  height: 1.55rem;
+  border: 1px solid #dddddd;
+  border-radius: 5px;
   overflow: hidden;
 }
 
 .qty-control button {
-  min-height: 2.5rem;
+  min-height: 1.45rem;
   border: 0;
-  background: var(--surface-strong);
-  color: var(--primary);
+  background: #ffffff;
+  color: #111111;
   cursor: pointer;
-  font-size: 1.35rem;
-  font-weight: 800;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .qty-control input {
   width: 100%;
+  min-height: 1.45rem;
   border: 0;
-  border-inline: 1px solid var(--line);
+  border-inline: 0;
   text-align: center;
-  font-weight: 800;
+  font-size: 1rem;
+  font-weight: 400;
 }
 
 .panel {
   margin-top: 1rem;
   padding: 1rem;
+}
+
+.order-panel {
+  border: 0;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.payment-checkout {
+  margin: 4.1rem auto 0;
+  max-width: 34rem;
+}
+
+#orderView {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding-top: 4.1rem;
+}
+
+.payment-checkout-panel,
+.order-confirm-panel {
+  border: 0;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+#paymentView > .section-head,
+#paymentView > .payment-info-panel,
+#paymentView > section.panel:not(.payment-info-panel) {
+  display: none;
+}
+
+.payment-checkout-panel {
+  padding: 1rem;
+}
+
+.order-confirm-panel {
+  margin-top: 0;
+  padding: 1rem;
+}
+
+.payment-checkout-panel .form-grid {
+  grid-template-columns: 1fr;
+  gap: 2.45rem;
+}
+
+.payment-checkout-panel label {
+  gap: 1.15rem;
+  color: #111111;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.payment-checkout-panel input,
+.payment-checkout-panel select {
+  min-height: 2.2rem;
+  border-color: #dddddd;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #9a9a9a;
+  text-align: center;
+}
+
+.payment-checkout-panel .form-grid:first-child label + label,
+.payment-method-grid label + label {
+  padding-top: 2.25rem;
+  border-top: 1px solid #9a9a9a;
+}
+
+.payment-order-items {
+  margin-top: 2.45rem;
+  padding-top: 1.15rem;
+  padding-bottom: 1.15rem;
+  border-top: 1px solid #9a9a9a;
+  border-bottom: 1px solid #9a9a9a;
+}
+
+.payment-order-items h3 {
+  margin-bottom: 1.25rem;
+}
+
+.payment-method-grid {
+  margin-top: 1.85rem;
+}
+
+.payment-total-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2.2rem;
+  align-items: baseline;
+  margin-top: 0.85rem;
+  padding-right: 0.3rem;
+}
+
+.payment-total-row span {
+  color: #9a9a9a;
+  font-size: 0.78rem;
+}
+
+.payment-total-row strong {
+  color: #111111;
+  font-size: 1.05rem;
+  font-weight: 400;
+}
+
+.payment-submit-button {
+  width: 100%;
+  min-height: 2.2rem;
+  margin-top: 8.65rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.confirmed-order-details {
+  margin: 1rem 0 0;
+}
+
+.confirmed-order-details div {
+  padding: 1.25rem 0;
+  border-top: 1px solid #9a9a9a;
+}
+
+.confirmed-order-details dt {
+  margin-bottom: 1.5rem;
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.confirmed-order-details dd {
+  margin: 0;
+  color: #9a9a9a;
 }
 
 .form-grid {
@@ -790,17 +958,6 @@ th {
     gap: 1.55rem;
   }
 
-  .product-card {
-    display: grid;
-    gap: 0;
-    padding: 9px;
-    border-color: #111111;
-    border-radius: 20px;
-    background: #ffffff;
-    box-shadow: none;
-    overflow: visible;
-  }
-
   .product-image {
     aspect-ratio: 16 / 9;
     border: 1px solid #111111;
@@ -884,10 +1041,6 @@ th {
   .order-panel {
     margin-top: 5.35rem;
     padding: 1.15rem 0.65rem 1.7rem;
-    border: 0;
-    border-radius: 20px;
-    background: #ffffff;
-    box-shadow: none;
   }
 
   .order-panel h3 {
@@ -981,6 +1134,55 @@ th {
     min-height: 2.2rem;
     border-radius: 6px;
     font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  #orderView {
+    padding-top: 4.1rem;
+  }
+
+  .order-confirm-panel {
+    margin-top: 0;
+    padding: 0.8rem 0.25rem 6.8rem;
+  }
+
+  .order-confirm-panel h2 {
+    margin-bottom: 1.25rem;
+    font-size: 1rem;
+    font-weight: 500;
+  }
+
+  .order-confirm-panel .mobile-order-list {
+    margin: 0 0.1rem;
+  }
+
+  .confirmed-order-details {
+    margin-top: 0.9rem;
+  }
+
+  .confirmed-order-details div {
+    padding: 1.35rem 0.75rem 1.15rem;
+  }
+
+  .confirmed-order-details dt {
+    margin-bottom: 1.55rem;
+    color: #111111;
+    font-size: 0.82rem;
+    font-weight: 400;
+  }
+
+  .confirmed-order-details dd {
+    color: #9a9a9a;
+    font-size: 0.85rem;
+  }
+
+  .paid-status-button {
+    display: block;
+    width: 7.2rem;
+    min-height: 2.55rem;
+    margin: 2.4rem 1.5rem 0 auto;
+    border-radius: 0;
+    font-size: 1rem;
     font-weight: 500;
   }
 
