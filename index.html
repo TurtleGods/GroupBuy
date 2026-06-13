@@ -11,21 +11,14 @@
   <body>
     <header class="app-header">
       <div class="brand-block">
-        <a class="brand-lockup" href="https://www.pigeon-packet.com/" aria-label="前往 Pigeon Packet 官方網站">
-          <span class="brand-mark">
-            <img src="logo.svg" alt="Pigeon Packet 標誌">
-          </span>
-          <span>
-            <strong>Pigeon Packet</strong>
-            <small>鴿子封包有限公司</small>
-          </span>
+        <a class="brand-title" href="https://www.pigeon-packet.com/" aria-label="BUY TOGETHER">
+          BUY TOGETHER
         </a>
-        <h1>鴿子封包團購</h1>
       </div>
       <nav class="tabs" aria-label="主要功能">
         <button class="tab is-active" data-view="shop" type="button">下單</button>
-        <button class="tab" data-view="payment" type="button">付款回報</button>
-        <button class="tab" data-view="admin" type="button">統計</button>
+        <button class="tab" data-view="payment" type="button">付款</button>
+        <button class="tab" data-view="admin" type="button">訂單</button>
       </nav>
     </header>
 
@@ -34,7 +27,7 @@
         <div class="section-head">
           <div>
             <h2 id="shopTitle">本期團購</h2>
-            <p>選商品、填資料，送出後會產生訂單編號。</p>
+            <p>115年6月30日16:00截止</p>
           </div>
           <button class="ghost-button" id="refreshProducts" type="button" title="重新整理商品">
             <span aria-hidden="true">↻</span>
@@ -51,6 +44,10 @@
               姓名
               <input name="buyerName" autocomplete="name" required placeholder="例如：王小明">
             </label>
+          </div>
+          <div class="mobile-order-items" aria-live="polite">
+            <h3>訂購品項</h3>
+            <div class="mobile-order-list" id="orderItemRows"></div>
           </div>
           <div class="order-summary">
             <div>

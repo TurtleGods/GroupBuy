@@ -266,6 +266,21 @@
     const total = items.reduce((sum, item) => sum + item.subtotal, 0);
     $("#itemCount").textContent = String(totalQty);
     $("#orderTotal").textContent = money.format(total);
+    const orderItemRows = $("#orderItemRows");
+    if (orderItemRows) {
+      orderItemRows.innerHTML = items.length
+        ? items
+            .map((item) => `
+              <div class="mobile-order-row">
+                <span>${escapeHtml(item.name)}</span>
+                <span>${money.format(item.price)}</span>
+                <span>x${item.qty}</span>
+                <span>${money.format(item.subtotal)}</span>
+              </div>
+            `)
+            .join("")
+        : `<p class="helper-text">尚未選擇品項</p>`;
+    }
   }
 
   function bindForms() {
