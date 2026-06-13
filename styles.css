@@ -18,6 +18,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -582,6 +586,120 @@ main {
   color: #9a9a9a;
 }
 
+.order-page-title,
+.all-orders-section h2 {
+  max-width: 34rem;
+  margin: 0 auto 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.confirmed-order-fields {
+  display: grid;
+  gap: 2.35rem;
+}
+
+.confirmed-order-fields label {
+  gap: 1.15rem;
+  color: #111111;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.confirmed-order-fields input {
+  min-height: 2.2rem;
+  border-color: #dddddd;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #111111;
+  text-align: center;
+}
+
+.confirmed-order-fields label + label {
+  padding-top: 2.25rem;
+  border-top: 1px solid #9a9a9a;
+}
+
+.confirmed-order-items {
+  margin-top: 2.45rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid #9a9a9a;
+}
+
+.all-orders-section {
+  max-width: 34rem;
+  margin: 3.8rem auto 0;
+}
+
+.all-orders-section h2 {
+  margin-bottom: 1.7rem;
+}
+
+.all-order-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.all-order-card {
+  padding: 0.55rem 0.55rem 0.7rem;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.all-order-card header {
+  display: grid;
+  grid-template-columns: minmax(4rem, 0.8fr) minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.all-order-card header strong {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.all-order-card header span {
+  overflow: hidden;
+  color: #9a9a9a;
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-status {
+  min-width: 3rem;
+  padding: 0.25rem 0.35rem;
+  background: var(--primary);
+  color: #111111;
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.all-order-items {
+  display: grid;
+  gap: 0.15rem;
+  margin-top: 1.1rem;
+}
+
+.all-order-items .mobile-order-row {
+  color: #9a9a9a;
+}
+
+.all-order-card .payment-total-row {
+  margin-top: 0.85rem;
+}
+
+.continue-order-button {
+  display: block;
+  width: min(34rem, 100%);
+  min-height: 2.2rem;
+  margin: 13.2rem auto 0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1012,15 +1130,19 @@ th {
     gap: 1.55rem;
   }
 
+  .product-card {
+    border: 0;
+  }
+
   .product-image {
     aspect-ratio: 16 / 9;
-    border: 1px solid #111111;
+    border: 0;
     border-radius: 12px;
   }
 
   .product-art {
     min-height: 11rem;
-    border: 1px solid #111111;
+    border: 0;
     border-radius: 12px;
   }
 

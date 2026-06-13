@@ -58,7 +58,7 @@
               <span>總金額</span>
               <strong id="orderTotal">NT$0</strong>
             </div>
-            <button class="primary-button" type="submit">送出訂單</button>
+            <button class="primary-button" type="submit">下一步：付款</button>
           </div>
         </form>
       </section>
@@ -158,25 +158,34 @@
       </section>
 
       <section class="view" id="orderView" aria-labelledby="orderTitle">
+        <h2 class="order-page-title" id="orderTitle">我的訂單</h2>
         <article class="panel order-confirm-panel">
-          <h2 id="orderTitle">訂購品項</h2>
-          <div class="mobile-order-list" id="confirmedOrderItems"></div>
+          <div class="confirmed-order-fields">
+            <label>
+              訂購人姓名
+              <input id="confirmedBuyerName" readonly value="-">
+            </label>
+            <label>
+              訂單編號
+              <input id="confirmedOrderId" readonly value="-">
+            </label>
+          </div>
+          <div class="mobile-order-items confirmed-order-items">
+            <h3>訂購品項</h3>
+            <div class="mobile-order-list" id="confirmedOrderItems"></div>
+          </div>
           <div class="payment-total-row">
             <span>總計</span>
             <strong id="confirmedOrderTotal">0</strong>
           </div>
-          <dl class="confirmed-order-details">
-            <div>
-              <dt>訂購人姓名</dt>
-              <dd id="confirmedBuyerName">-</dd>
-            </div>
-            <div>
-              <dt>訂單編號</dt>
-              <dd id="confirmedOrderId">-</dd>
-            </div>
-          </dl>
         </article>
-        <button class="primary-button paid-status-button" type="button">已付款</button>
+
+        <section class="all-orders-section" aria-labelledby="allOrdersTitle">
+          <h2 id="allOrdersTitle">所有訂單</h2>
+          <div class="all-order-list" id="allOrderList"></div>
+        </section>
+
+        <button class="primary-button continue-order-button" type="button" id="continueOrderButton">繼續訂購</button>
       </section>
 
       <section class="view" id="adminView" aria-labelledby="adminTitle">

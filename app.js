@@ -336,16 +336,12 @@
       if (targetOrder) {
         state.currentOrder = targetOrder;
       }
-      if (payload.method === "cash") {
-        renderOrderConfirmation(state.currentOrder);
-        activateView("order");
-        showToast("現金付款資訊已送出。");
-      } else {
-        formElement.reset();
-        updatePaymentMethodView();
-        renderPaymentCheckout(null);
-        showToast("付款回報已送出，狀態為待確認。");
-      }
+      formElement.reset();
+      updatePaymentMethodView();
+      renderPaymentCheckout(null);
+      renderOrderConfirmation(state.currentOrder);
+      activateView("order");
+      showToast(payload.method === "cash" ? "現金付款資訊已送出。" : "付款回報已送出，狀態為待確認。");
     });
 
     $("#adminLoginForm").addEventListener("submit", async (event) => {
@@ -439,15 +435,67 @@
     if (!order) {
       itemRows.innerHTML = `<p class="helper-text">尚未選擇訂單</p>`;
       $("#confirmedOrderTotal").textContent = "0";
-      $("#confirmedBuyerName").textContent = "-";
-      $("#confirmedOrderId").textContent = "-";
+      $("#confirmedBuyerName").value = "-";
+      $("#confirmedOrderId").value = "-";
+      renderAllOrders();
       return;
     }
 
     itemRows.innerHTML = renderOrderItemRows(order.items);
     $("#confirmedOrderTotal").textContent = plainAmount(order.total);
-    $("#confirmedBuyerName").textContent = order.buyerName || "-";
-    $("#confirmedOrderId").textContent = order.id || "-";
+    $("#confirmedBuyerName").value = order.buyerName || "-";
+    $("#confirmedOrderId").value = order.id || "-";
+    renderAllOrders(order.id);
+  }
+
+  function renderAllOrders(activeOrderId = "") {
+    const list = $("#allOrderList");
+    if (!list) {
+      return;
+    }
+
+    list.innerHTML = state.publicOrders.length
+      ? state.publicOrders
+          .map((order) => {
+            const status = getPublicOrderStatus(order);
+            const isActive = activeOrderId && order.id === activeOrderId;
+            return `
+              <article class="all-order-card ${isActive ? "is-current" : ""}">
+                <header>
+                  <strong>${escapeHtml(order.buyerName || "-")}</strong>
+                  <span>${escapeHtml(order.id || "-")}</span>
+                  <mark class="order-status ${status.className}">${status.label}</mark>
+                </header>
+                <div class="all-order-items">
+                  ${renderOrderItemRows(order.items)}
+                </div>
+                <div class="payment-total-row">
+                  <span>總計</span>
+                  <strong>${plainAmount(order.total)}</strong>
+                </div>
+              </article>
+            `;
+          })
+          .join("")
+      : `<p class="helper-text">目前還沒有訂單。</p>`;
+  }
+
+  function getPublicOrderStatus(order) {
+    const orderTotal = Number(order.total || 0);
+    const paidAmount = state.publicPayments
+      .filter((payment) => payment.orderId === order.id && payment.status === "confirmed")
+      .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const pendingAmount = state.publicPayments
+      .filter((payment) => payment.orderId === order.id && payment.status !== "confirmed")
+      .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+
+    if (paidAmount >= orderTotal && orderTotal > 0) {
+      return { className: "confirmed", label: "已付款" };
+    }
+    if (pendingAmount > 0) {
+      return { className: "pending", label: "處理中" };
+    }
+    return { className: "unpaid", label: "未付款" };
   }
 
   function renderOrderItemRows(items = []) {
@@ -677,6 +725,7 @@
 
   function bindActions() {
     $("#refreshProducts").addEventListener("click", () => loadProducts().then(() => showToast("商品已更新。")));
+    $("#continueOrderButton").addEventListener("click", () => activateView("shop"));
     $("#refreshAdmin").addEventListener("click", () => loadDashboard().then(() => {
       if (state.adminPassword) {
         showToast("統計已更新。");
