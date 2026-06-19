@@ -62,6 +62,10 @@ function route(action, payload) {
     requireAdmin(payload.adminPassword);
     return deleteOrder(payload.orderId);
   }
+  if (action === "deleteAllOrders") {
+    requireAdmin(payload.adminPassword);
+    return deleteAllOrders();
+  }
 
   throw new Error("Unknown action: " + action);
 }
@@ -283,6 +287,12 @@ function deleteOrder(orderId) {
   return { ok: true };
 }
 
+function deleteAllOrders() {
+  clearSheetData(getSheet(SHEETS.orders));
+  clearSheetData(getSheet(SHEETS.payments));
+  return { ok: true };
+}
+
 function listOrders() {
   return readObjects(SHEETS.orders).map((order) => ({
     id: String(order.id),
@@ -349,6 +359,16 @@ function deleteRowsByValue(sheet, headerName, value) {
 
   rowsToDelete.reverse().forEach((rowNumber) => sheet.deleteRow(rowNumber));
   return rowsToDelete.length > 0;
+}
+
+function clearSheetData(sheet) {
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow <= 1 || lastColumn === 0) {
+    return;
+  }
+
+  sheet.getRange(2, 1, lastRow - 1, lastColumn).clearContent();
 }
 
 function getSheet(sheetName) {

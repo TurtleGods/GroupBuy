@@ -48,8 +48,11 @@
     publicOrders: [],
     publicPayments: [],
     cart: new Map(),
-    currentOrder: null,
-    adminPassword: sessionStorage.getItem("groupbuy.adminPassword") || ""
+    currentOrder: readSessionJSON("groupbuy.currentOrder"),
+    adminPassword: sessionStorage.getItem("groupbuy.adminPassword") || "",
+    currentOrderId: sessionStorage.getItem("groupbuy.currentOrderId") || "",
+    orderPanel: "my",
+    orderSearchQuery: ""
   };
 
   const storage = {
@@ -144,6 +147,13 @@
       storage.set("groupbuy.payments", payments.filter((payment) => payment.orderId !== payload.orderId));
       return Promise.resolve({ ok: true });
     }
+    if (action === "deleteAllOrders") {
+      storage.set("groupbuy.orders", []);
+      storage.set("groupbuy.payments", []);
+      sessionStorage.removeItem("groupbuy.currentOrder");
+      sessionStorage.removeItem("groupbuy.currentOrderId");
+      return Promise.resolve({ ok: true });
+    }
 
     return Promise.reject(new Error("未知操作"));
   }
@@ -167,10 +177,27 @@
     window.setTimeout(() => toast.classList.remove("is-visible"), 3200);
   }
 
+  function readSessionJSON(key) {
+    try {
+      const value = sessionStorage.getItem(key);
+      return value ? JSON.parse(value) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   function bindTabs() {
     document.querySelectorAll(".tab").forEach((button) => {
       button.addEventListener("click", () => {
         activateView(button.dataset.view);
+      });
+    });
+  }
+
+  function bindOrderTabs() {
+    document.querySelectorAll(".order-subtab").forEach((button) => {
+      button.addEventListener("click", () => {
+        activateOrderPanel(button.dataset.orderPanel || "my");
       });
     });
   }
@@ -182,15 +209,60 @@
     document.querySelectorAll(".view").forEach((view) => {
       view.classList.toggle("is-active", view.id === `${viewName}View`);
     });
+    scrollToTop();
     if (viewName === "payment") {
       loadPublicBoard();
     }
     if (viewName === "order") {
-      loadPublicBoard().then(() => renderOrderConfirmation(state.currentOrder || state.publicOrders[0]));
+      loadPublicBoard().then(() => activateOrderPanel("my"));
     }
     if (viewName === "admin") {
       loadDashboard();
     }
+  }
+
+  function activateOrderPanel(panelName) {
+    state.orderPanel = panelName === "search" ? "search" : "my";
+
+    document.querySelectorAll(".order-subtab").forEach((button) => {
+      const isActive = button.dataset.orderPanel === state.orderPanel;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-selected", String(isActive));
+    });
+
+    document.querySelectorAll(".order-subview").forEach((panel) => {
+      const isActive = panel.id === `${state.orderPanel}OrderPanel`;
+      panel.classList.toggle("is-active", isActive);
+      panel.hidden = !isActive;
+    });
+
+    scrollToTop();
+    renderActiveOrderPanel();
+  }
+
+  function renderActiveOrderPanel() {
+    if (!$("#orderView")?.classList.contains("is-active")) {
+      return;
+    }
+
+    if (state.orderPanel === "search") {
+      renderOrderSearchResults();
+      return;
+    }
+
+    renderMyOrderPanel(resolveMyOrder());
+  }
+
+  function scrollToTop() {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
+
+  function resolveMyOrder() {
+    if (!state.currentOrderId) {
+      return null;
+    }
+
+    return state.publicOrders.find((order) => order.id === state.currentOrderId) || state.currentOrder || null;
   }
 
   async function loadProducts() {
@@ -309,6 +381,9 @@
 
       const order = await api.request("createOrder", payload);
       state.currentOrder = order;
+      state.currentOrderId = order.id || "";
+      sessionStorage.setItem("groupbuy.currentOrder", JSON.stringify(order));
+      sessionStorage.setItem("groupbuy.currentOrderId", state.currentOrderId);
       state.cart.clear();
       formElement.reset();
       renderProducts();
@@ -332,16 +407,25 @@
       };
       await api.request("createPayment", payload);
       await loadPublicBoard();
-      const targetOrder = state.publicOrders.find((order) => order.id === payload.orderId) || state.currentOrder;
-      if (targetOrder) {
+      const targetOrder = state.publicOrders.find((order) => order.id === payload.orderId);
+      if (targetOrder && targetOrder.id === state.currentOrderId) {
         state.currentOrder = targetOrder;
+        sessionStorage.setItem("groupbuy.currentOrder", JSON.stringify(targetOrder));
       }
       formElement.reset();
       updatePaymentMethodView();
       renderPaymentCheckout(null);
-      renderOrderConfirmation(state.currentOrder);
+      renderMyOrderPanel(resolveMyOrder());
       activateView("order");
+      activateOrderPanel("my");
       showToast(payload.method === "cash" ? "現金付款資訊已送出。" : "付款回報已送出，狀態為待確認。");
+    });
+
+    $("#orderSearchForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      state.orderSearchQuery = String(form.get("orderSearchQuery") || "").trim();
+      renderOrderSearchResults();
     });
 
     $("#adminLoginForm").addEventListener("submit", async (event) => {
@@ -379,10 +463,12 @@
       state.publicOrders = data.orders || [];
       state.publicPayments = data.payments || [];
       renderPaymentOrders();
+      renderActiveOrderPanel();
     } catch (error) {
       state.publicOrders = [];
       state.publicPayments = [];
       renderPaymentOrders(error.message);
+      renderActiveOrderPanel();
     }
   }
 
@@ -410,6 +496,12 @@
     const isTransfer = form.elements.method.value === "bank";
     $("#transferInfo").hidden = !isTransfer;
     $("#paymentNotePanel").hidden = !isTransfer;
+    const paymentIntro = $("#paymentIntro");
+    if (paymentIntro) {
+      paymentIntro.textContent = isTransfer
+        ? "下單完成，請依下方指示進行付款，完成後再送出訂單。"
+        : "現金：送出訂單後向管理員繳費，請自備剛好金額，不找零。轉帳：匯至指定帳號後，再送出訂單。";
+    }
     if (!isTransfer) {
       form.elements.reference.value = "";
     }
@@ -426,47 +518,73 @@
     total.textContent = order ? plainAmount(order.total) : "0";
   }
 
-  function renderOrderConfirmation(order) {
+  function renderMyOrderPanel(order) {
+    const emptyState = $("#orderEmptyState");
+    const card = $("#myOrderCard");
+    const title = $("#myOrderTitle");
+    if (!emptyState || !card || !title) {
+      return;
+    }
+
     const itemRows = $("#confirmedOrderItems");
     if (!itemRows) {
       return;
     }
 
     if (!order) {
-      itemRows.innerHTML = `<p class="helper-text">尚未選擇訂單</p>`;
-      $("#confirmedOrderTotal").textContent = "0";
-      $("#confirmedBuyerName").value = "-";
-      $("#confirmedOrderId").value = "-";
-      renderAllOrders();
+      title.hidden = true;
+      card.hidden = true;
+      emptyState.hidden = false;
+      renderOrderSearchResults();
       return;
     }
 
+    title.hidden = false;
+    card.hidden = false;
+    emptyState.hidden = true;
     itemRows.innerHTML = renderOrderItemRows(order.items);
     $("#confirmedOrderTotal").textContent = plainAmount(order.total);
     $("#confirmedBuyerName").value = order.buyerName || "-";
     $("#confirmedOrderId").value = order.id || "-";
-    renderAllOrders(order.id);
+    renderOrderSearchResults();
   }
 
-  function renderAllOrders(activeOrderId = "") {
-    const list = $("#allOrderList");
+  function renderOrderSearchResults() {
+    const list = $("#orderSearchList");
+    const resultsSection = $("#orderSearchResults");
     if (!list) {
       return;
     }
 
-    list.innerHTML = state.publicOrders.length
-      ? state.publicOrders
+    const query = state.orderSearchQuery.trim().toLowerCase();
+    if (!query) {
+      list.innerHTML = "";
+      if (resultsSection) {
+        resultsSection.hidden = true;
+      }
+      return;
+    }
+
+    if (resultsSection) {
+      resultsSection.hidden = false;
+    }
+
+    const matchedOrders = state.publicOrders.filter((order) =>
+      String(order.buyerName || "").toLowerCase().includes(query)
+    );
+
+    list.innerHTML = matchedOrders.length
+      ? matchedOrders
           .map((order) => {
             const status = getPublicOrderStatus(order);
-            const isActive = activeOrderId && order.id === activeOrderId;
             return `
-              <article class="all-order-card ${isActive ? "is-current" : ""}">
+              <article class="order-result-card">
                 <header>
                   <strong>${escapeHtml(order.buyerName || "-")}</strong>
                   <span>${escapeHtml(order.id || "-")}</span>
                   <mark class="order-status ${status.className}">${status.label}</mark>
                 </header>
-                <div class="all-order-items">
+                <div class="order-result-items">
                   ${renderOrderItemRows(order.items)}
                 </div>
                 <div class="payment-total-row">
@@ -477,7 +595,7 @@
             `;
           })
           .join("")
-      : `<p class="helper-text">目前還沒有訂單。</p>`;
+      : `<p class="helper-text">查無訂單。</p>`;
   }
 
   function getPublicOrderStatus(order) {
@@ -725,7 +843,16 @@
 
   function bindActions() {
     $("#refreshProducts").addEventListener("click", () => loadProducts().then(() => showToast("商品已更新。")));
-    $("#continueOrderButton").addEventListener("click", () => activateView("shop"));
+    $("#deleteAllOrdersButton").addEventListener("click", async () => {
+      if (!window.confirm("確定要刪除全部訂單？相關付款回報也會一起刪除。")) {
+        return;
+      }
+
+      await api.request("deleteAllOrders", { adminPassword: state.adminPassword });
+      showToast("全部訂單已刪除。");
+      await loadDashboard();
+      await loadPublicBoard();
+    });
     $("#refreshAdmin").addEventListener("click", () => loadDashboard().then(() => {
       if (state.adminPassword) {
         showToast("統計已更新。");
@@ -735,10 +862,12 @@
 
   async function init() {
     bindTabs();
+    bindOrderTabs();
     bindForms();
     bindActions();
     await loadProducts();
     await loadPublicBoard();
+    activateOrderPanel("my");
   }
 
   init().catch((error) => showToast(error.message));

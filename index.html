@@ -25,9 +25,9 @@
     <main>
       <section class="view is-active" id="shopView" aria-labelledby="shopTitle">
         <div class="section-head">
-          <div>
+          <div class="section-head-copy">
             <h2 id="shopTitle">本期團購</h2>
-            <p>115年6月30日16:00截止</p>
+            <p>115年6月30日16:00訂購截止<br>115年7月1日16:00前付款，未付款即刪單<br>備註:每單運費10元</p>
           </div>
           <button class="ghost-button" id="refreshProducts" type="button" title="重新整理商品">
             <span aria-hidden="true">↻</span>
@@ -38,7 +38,7 @@
         <div class="catalog" id="productList"></div>
 
         <form class="panel order-panel" id="orderForm">
-          <h3>訂購資料</h3>
+          <h3>訂購人資料</h3>
           <div class="form-grid">
             <label>
               姓名
@@ -58,16 +58,18 @@
               <span>總金額</span>
               <strong id="orderTotal">NT$0</strong>
             </div>
-            <button class="primary-button" type="submit">下一步：付款</button>
           </div>
         </form>
+        <div class="order-submit-wrap">
+          <button class="primary-button order-submit-button" type="submit" form="orderForm">下一步：付款</button>
+        </div>
       </section>
 
       <section class="view" id="paymentView" aria-labelledby="paymentTitle">
         <div class="section-head">
-          <div>
+          <div class="section-head-copy">
             <h2 id="paymentTitle">付款回報</h2>
-            <p>下單完成後，先依下方付款資訊付款，再送出回報。</p>
+            <p id="paymentIntro">下單完成，請依下方指示進行付款，完成後再送出訂單。</p>
           </div>
         </div>
 
@@ -158,34 +160,51 @@
       </section>
 
       <section class="view" id="orderView" aria-labelledby="orderTitle">
-        <h2 class="order-page-title" id="orderTitle">我的訂單</h2>
-        <article class="panel order-confirm-panel">
-          <div class="confirmed-order-fields">
-            <label>
-              訂購人姓名
-              <input id="confirmedBuyerName" readonly value="-">
-            </label>
-            <label>
-              訂單編號
-              <input id="confirmedOrderId" readonly value="-">
-            </label>
-          </div>
-          <div class="mobile-order-items confirmed-order-items">
-            <h3>訂購品項</h3>
-            <div class="mobile-order-list" id="confirmedOrderItems"></div>
-          </div>
-          <div class="payment-total-row">
-            <span>總計</span>
-            <strong id="confirmedOrderTotal">0</strong>
-          </div>
-        </article>
+        <div class="order-subtabs" role="tablist" aria-label="訂單切換">
+          <button class="order-subtab is-active" type="button" data-order-panel="my" aria-controls="myOrderPanel" aria-selected="true">我的訂單</button>
+          <button class="order-subtab" type="button" data-order-panel="search" aria-controls="searchOrderPanel" aria-selected="false">搜尋訂單</button>
+        </div>
 
-        <section class="all-orders-section" aria-labelledby="allOrdersTitle">
-          <h2 id="allOrdersTitle">所有訂單</h2>
-          <div class="all-order-list" id="allOrderList"></div>
+        <section class="order-subview is-active" id="myOrderPanel" aria-labelledby="myOrderTitle">
+          <h2 class="order-page-title" id="myOrderTitle">我的訂單</h2>
+          <p class="order-empty-state" id="orderEmptyState" hidden>查無訂單</p>
+          <article class="panel order-confirm-panel" id="myOrderCard">
+            <div class="confirmed-order-fields">
+              <label>
+                訂購人姓名
+                <input id="confirmedBuyerName" readonly value="-">
+              </label>
+              <label>
+                訂單編號
+                <input id="confirmedOrderId" readonly value="-">
+              </label>
+            </div>
+            <div class="mobile-order-items confirmed-order-items">
+              <h3>訂購品項</h3>
+              <div class="mobile-order-list" id="confirmedOrderItems"></div>
+            </div>
+            <div class="payment-total-row">
+              <span>總計</span>
+              <strong id="confirmedOrderTotal">0</strong>
+            </div>
+          </article>
         </section>
 
-        <button class="primary-button continue-order-button" type="button" id="continueOrderButton">繼續訂購</button>
+        <section class="order-subview" id="searchOrderPanel" aria-labelledby="searchOrderTitle" hidden>
+          <h2 class="order-page-title" id="searchOrderTitle">訂購人資料</h2>
+          <form class="order-search-form" id="orderSearchForm">
+            <label class="order-search-input">
+              <span class="sr-only">請輸入姓名</span>
+              <input name="orderSearchQuery" id="orderSearchQuery" type="search" placeholder="請輸入姓名" autocomplete="off">
+              <button type="submit" aria-label="搜尋訂單">⌕</button>
+            </label>
+          </form>
+
+          <section class="order-search-results" id="orderSearchResults" hidden>
+            <h2 class="order-page-title">搜尋結果</h2>
+            <div class="order-search-list" id="orderSearchList"></div>
+          </section>
+        </section>
       </section>
 
       <section class="view" id="adminView" aria-labelledby="adminTitle">
@@ -209,6 +228,9 @@
         </form>
 
         <div class="admin-content is-locked" id="adminContent">
+        <div class="admin-actions">
+          <button class="small-button danger" type="button" id="deleteAllOrdersButton">刪除全部訂單</button>
+        </div>
         <div class="metrics">
           <div class="metric">
             <span>訂單數</span>
@@ -281,7 +303,6 @@
           <span>技術交付夥伴</span>
         </div>
       </a>
-      <a href="mailto:pigeon@pigeon-packet.com">pigeon@pigeon-packet.com</a>
     </footer>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -289,4 +310,5 @@
     <script src="config.js"></script>
     <script src="app.js"></script>
   </body>
+
 </html>
