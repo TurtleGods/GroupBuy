@@ -10,10 +10,16 @@
   </head>
   <body>
     <header class="app-header">
+      <button class="header-icon-button header-menu-button" type="button" aria-label="開啟選單">
+        <svg class="icon-svg icon-svg-menu" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+        </svg>
+      </button>
       <div class="brand-block">
         <a class="brand-title" href="https://groupbuy.pigeon-packet.com/" aria-label="BUY TOGETHER">
           BUY TOGETHER
         </a>
+        <p class="brand-tagline">- 吃好吃，好開心-</p>
       </div>
       <nav class="tabs" aria-label="主要功能">
         <button class="tab is-active" data-view="shop" type="button">下單</button>
@@ -22,12 +28,46 @@
       </nav>
     </header>
 
+    <section class="mobile-stepper" aria-label="訂購進度">
+      <button class="step is-active" data-step="shop" type="button">
+        <span class="step-index">1</span>
+        <span class="step-label">下單</span>
+      </button>
+      <button class="step" data-step="payment" type="button">
+        <span class="step-index">2</span>
+        <span class="step-label">付款</span>
+      </button>
+      <button class="step" data-step="order" type="button">
+        <span class="step-index">3</span>
+        <span class="step-label">訂單</span>
+      </button>
+      <button class="step" data-step="search" type="button">
+        <span class="step-index">4</span>
+        <span class="step-label">查詢</span>
+      </button>
+    </section>
+
     <main>
       <section class="view is-active" id="shopView" aria-labelledby="shopTitle">
+        <section class="shop-hero panel">
+          <div class="shop-hero-copy">
+            <h2 id="shopTitle">本期團購</h2>
+            <dl class="shop-hero-dates">
+              <div>
+                <dt>6/30 16:00</dt>
+                <dd>收單截止</dd>
+              </div>
+              <div>
+                <dt>7/1 16:00 前</dt>
+                <dd>付款，未付款即刪單</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+
         <div class="section-head">
           <div class="section-head-copy">
-            <h2 id="shopTitle">本期團購</h2>
-            <p>115年6月30日16:00訂購截止<br>115年7月1日16:00前付款，未付款即刪單<br>備註:每單運費10元</p>
+            <h2>選購商品</h2>
           </div>
           <button class="ghost-button" id="refreshProducts" type="button" title="重新整理商品">
             <span aria-hidden="true">↻</span>
@@ -36,6 +76,21 @@
         </div>
 
         <div class="catalog" id="productList"></div>
+
+        <section class="panel delivery-panel">
+          <div class="delivery-panel-icon" aria-hidden="true">
+            <svg class="icon-svg icon-svg-truck" viewBox="0 0 24 24">
+              <path d="M3.5 7.5h10v7h-10z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+              <path d="M13.5 10h3.7l2.3 2.4V14.5h-6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+              <circle cx="8" cy="16.5" r="1.5" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+              <circle cx="17" cy="16.5" r="1.5" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+            </svg>
+          </div>
+          <div class="delivery-panel-copy">
+            <h3>配送說明</h3>
+            <p>每件商品加收 <strong>NT$10</strong> 運費，數量 1 = 運費 10 元，數量 5 = 運費 50 元，與商品一併結算。</p>
+          </div>
+        </section>
 
         <form class="panel order-panel" id="orderForm">
           <h3>訂購人資料</h3>
@@ -59,112 +114,112 @@
               <strong id="orderTotal">NT$0</strong>
             </div>
           </div>
+          <p class="shipping-hint" id="shippingHint">含運費 NT$0</p>
         </form>
-        <div class="order-submit-wrap">
-          <button class="primary-button order-submit-button" type="submit" form="orderForm">下一步：付款</button>
-        </div>
       </section>
 
       <section class="view" id="paymentView" aria-labelledby="paymentTitle">
         <div class="section-head">
           <div class="section-head-copy">
             <h2 id="paymentTitle">付款回報</h2>
-            <p id="paymentIntro">下單完成，請依下方指示進行付款，完成後再送出訂單。</p>
+            <p id="paymentIntro">下單完成，請依下方資訊進行付款，完成後再送出訂單。</p>
           </div>
         </div>
 
-        <section class="panel payment-info-panel">
-          <div class="payment-info-copy">
-            <h3>付款資訊</h3>
-            <dl class="payment-info-list">
-              <div>
-                <dt>銀行名稱</dt>
-                <dd>示意聯合商業銀行</dd>
-              </div>
-              <div>
-                <dt>戶名</dt>
-                <dd>王小明</dd>
-              </div>
-              <div>
-                <dt>帳號</dt>
-                <dd>1234-567-890123</dd>
-              </div>
-              <div>
-                <dt>付款提醒</dt>
-                <dd>請依訂單金額付款，付款後回到下方填寫回報。</dd>
-              </div>
-            </dl>
-          </div>
-          <figure class="payment-qr">
-            <img src="payment-qr-sample.svg" alt="示意銀行付款 QR Code">
-            <figcaption>付款 QR Code 範例</figcaption>
-          </figure>
-        </section>
-
         <form class="payment-checkout" id="paymentForm">
-          <div class="panel payment-checkout-panel payment-order-panel">
+          <input name="amount" type="hidden">
+          <input name="method" type="hidden" value="cash">
+
+          <div class="payment-identity-panel">
             <div class="form-grid">
-              <label>
-                訂購人姓名
+              <label class="payment-field">
+                <span class="payment-field-label">訂購人姓名</span>
                 <input name="payerName" required placeholder="王小明">
               </label>
-              <label>
-                訂單編號
-                <input name="orderId" required placeholder="GB-20260613-001">
+              <label class="payment-field">
+                <span class="payment-field-label">訂單編號</span>
+                <input name="orderId" required placeholder="GB-12676778999">
               </label>
             </div>
-            <div class="mobile-order-items payment-order-items" aria-live="polite">
-              <h3>訂購品項</h3>
-              <div class="mobile-order-list" id="paymentOrderItems"></div>
-              <div class="payment-total-row">
-                <span>總計</span>
-                <strong id="paymentOrderTotal">0</strong>
+          </div>
+
+          <section class="payment-methods-wrap">
+            <div class="section-head compact payment-methods-head">
+              <div>
+                <h3>選擇付款方式</h3>
+                <p>請選擇本次訂單的付款方式</p>
+              </div>
+            </div>
+            <div class="payment-method-grid" role="radiogroup" aria-label="付款方式">
+              <button class="payment-method-card is-active" type="button" data-method="cash" aria-pressed="true">
+                <span class="payment-method-radio" aria-hidden="true"></span>
+                <span class="payment-method-icon" aria-hidden="true">
+                  <svg class="icon-svg icon-svg-cash" viewBox="0 0 24 24">
+                    <rect x="3.5" y="7.5" width="17" height="9" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+                    <circle cx="12" cy="12" r="2.2" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                    <path d="M6.3 9.8c.7 0 1.3-.6 1.3-1.3M17.7 14.2c-.7 0-1.3.6-1.3 1.3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"></path>
+                  </svg>
+                </span>
+                <span class="payment-method-copy">
+                  <strong>現金付款</strong>
+                  <span>出貨後，送出訂單將由管理員向您收款項。</span>
+                </span>
+              </button>
+              <button class="payment-method-card" type="button" data-method="bank" aria-pressed="false">
+                <span class="payment-method-radio" aria-hidden="true"></span>
+                <span class="payment-method-icon" aria-hidden="true">
+                  <svg class="icon-svg icon-svg-bank" viewBox="0 0 24 24">
+                    <path d="M4.5 9h15L12 5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+                    <path d="M6.5 9.5V16M10.5 9.5V16M13.5 9.5V16M17.5 9.5V16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                    <path d="M4 17h16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                  </svg>
+                </span>
+                <span class="payment-method-copy">
+                  <strong>銀行轉帳</strong>
+                  <span>匯款後，請填寫匯款帳號末五碼，以利核對。</span>
+                </span>
+              </button>
+            </div>
+          </section>
+
+          <div class="payment-transfer-panel" id="transferInfo" hidden>
+            <h3>匯款資訊</h3>
+            <div class="transfer-info-box">
+              <div>
+                <span>銀行代碼</span>
+                <strong>822 中國信託商業銀行</strong>
+              </div>
+              <div>
+                <span>帳號</span>
+                <strong>8099 9997 6568</strong>
+              </div>
+              <div>
+                <span>戶名</span>
+                <strong>王大明</strong>
               </div>
             </div>
           </div>
-          <div class="panel payment-checkout-panel payment-method-panel">
-            <input name="amount" type="hidden">
-            <label>
-              付款方式
-              <select name="method" required>
-                <option value="cash">現金</option>
-                <option value="bank">轉帳</option>
-              </select>
-            </label>
-            <div class="transfer-info" id="transferInfo" hidden>
-              <span>匯款資訊</span>
-              <div class="transfer-info-box">
-                <p><span>銀行</span><strong>802永豐大戶</strong></p>
-                <p><span>帳號</span><strong>809999976568</strong></p>
-                <p><span>戶名</span><strong>王大明</strong></p>
-              </div>
-            </div>
-          </div>
-          <div class="panel payment-checkout-panel payment-note-panel" id="paymentNotePanel" hidden>
-            <label>
-              匯款帳號/備註
+
+          <div class="payment-note-panel" id="paymentNotePanel" hidden>
+            <label class="payment-field payment-reference-field">
+              <span class="payment-field-label">請輸入匯款帳號末五碼</span>
               <input name="reference" placeholder="99865">
             </label>
+            <p class="payment-note-text">* 填寫完成後，將核對帳號。</p>
           </div>
-          <button class="primary-button payment-submit-button" type="submit">送出訂單</button>
+
         </form>
 
-        <section class="panel">
-          <div class="section-head compact">
-            <div>
-              <h3>訂單列表</h3>
-            </div>
+        <div class="payment-actions-bar" id="paymentActionsBar" aria-label="付款操作">
+          <div class="payment-actions-summary">
+            <span>總計</span>
+            <strong id="paymentStickyTotal">NT$0</strong>
           </div>
-          <div class="public-order-list" id="paymentOrderList"></div>
-        </section>
+          <button class="primary-button payment-submit-button" type="submit" form="paymentForm">送出訂單</button>
+        </div>
       </section>
 
       <section class="view" id="orderView" aria-labelledby="orderTitle">
-        <div class="order-subtabs" role="tablist" aria-label="訂單切換">
-          <button class="order-subtab is-active" type="button" data-order-panel="my" aria-controls="myOrderPanel" aria-selected="true">我的訂單</button>
-          <button class="order-subtab" type="button" data-order-panel="search" aria-controls="searchOrderPanel" aria-selected="false">搜尋訂單</button>
-        </div>
-
         <section class="order-subview is-active" id="myOrderPanel" aria-labelledby="myOrderTitle">
           <h2 class="order-page-title" id="myOrderTitle">我的訂單</h2>
           <p class="order-empty-state" id="orderEmptyState" hidden>查無訂單</p>
@@ -179,10 +234,7 @@
                 <input id="confirmedOrderId" readonly value="-">
               </label>
             </div>
-            <div class="mobile-order-items confirmed-order-items">
-              <h3>訂購品項</h3>
-              <div class="mobile-order-list" id="confirmedOrderItems"></div>
-            </div>
+            <div class="confirmed-order-items" id="confirmedOrderItems"></div>
             <div class="payment-total-row">
               <span>總計</span>
               <strong id="confirmedOrderTotal">0</strong>
@@ -196,7 +248,12 @@
             <label class="order-search-input">
               <span class="sr-only">請輸入姓名</span>
               <input name="orderSearchQuery" id="orderSearchQuery" type="search" placeholder="請輸入姓名" autocomplete="off">
-              <button type="submit" aria-label="搜尋訂單">⌕</button>
+              <button type="submit" aria-label="搜尋訂單">
+                <svg class="icon-svg icon-svg-search" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="11" cy="11" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+                  <path d="M15 15l4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+                </svg>
+              </button>
             </label>
           </form>
 
@@ -295,11 +352,28 @@
       </section>
     </main>
 
+    <div class="shop-actions-bar" id="shopActionsBar" aria-label="訂單摘要與下一步">
+      <div class="shop-actions-summary">
+        <div class="shop-actions-icon" aria-hidden="true">
+          <svg class="icon-svg icon-svg-bag" viewBox="0 0 24 24">
+            <path d="M7 8.5V7.2A5 5 0 0 1 12 3.8a5 5 0 0 1 5 3.4v1.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+            <path d="M5.5 8.5h13l-1.1 11H6.6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+            <path d="M9.2 11.3c0 1.5 1.2 2.7 2.8 2.7s2.8-1.2 2.8-2.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+          </svg>
+        </div>
+        <div>
+          <div class="shop-actions-count" id="shopSelectedCount">已選 0 件商品</div>
+          <div class="shop-actions-total">總計 <strong id="shopStickyTotal">NT$0</strong></div>
+        </div>
+      </div>
+      <button class="primary-button order-submit-button" type="submit" form="orderForm">下一步：付款</button>
+    </div>
+
     <footer class="site-footer">
       <a class="footer-brand" href="https://www.pigeon-packet.com/" aria-label="前往 Pigeon Packet 官方網站">
         <img src="logo.svg" alt="" aria-hidden="true">
         <div>
-          <strong>Pigeon Packet</strong>
+          <span>Pigeon Packet</span>
           <span>技術交付夥伴</span>
         </div>
       </a>

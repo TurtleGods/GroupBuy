@@ -6,7 +6,7 @@ const SHEETS = {
 
 const HEADERS = {
   Products: ["id", "name", "description", "price", "deadline", "color", "imageUrl", "active"],
-  Orders: ["id", "buyerName", "itemsJson", "total", "createdAt"],
+  Orders: ["id", "buyerName", "itemsJson", "subtotal", "shipping", "total", "createdAt"],
   Payments: ["id", "orderId", "payerName", "amount", "method", "reference", "status", "createdAt"]
 };
 
@@ -114,15 +114,20 @@ function ensureSheets() {
 
 function migrateOrdersSheet(sheet) {
   const lastColumn = sheet.getLastColumn();
-  if (lastColumn < 8) {
-    return;
-  }
-
-  const current = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
-  const oldHeaders = ["id", "buyerName", "department", "contact", "note", "itemsJson", "total", "createdAt"];
-  const isOldOrderSheet = oldHeaders.every((header, index) => current[index] === header);
-  if (isOldOrderSheet) {
+  const current = sheet.getRange(1, 1, 1, Math.max(lastColumn, 8)).getValues()[0];
+  const oldSimpleHeaders = ["id", "buyerName", "itemsJson", "total", "createdAt"];
+  const oldLegacyHeaders = ["id", "buyerName", "department", "contact", "note", "itemsJson", "total", "createdAt"];
+  const isSimpleOrderSheet = oldSimpleHeaders.every((header, index) => current[index] === header);
+  const isOldOrderSheet = oldLegacyHeaders.every((header, index) => current[index] === header);
+  if (isSimpleOrderSheet) {
+    sheet.insertColumnsBefore(4, 2);
+    sheet.getRange(1, 1, 1, HEADERS.Orders.length).setValues([HEADERS.Orders]);
+    sheet.setFrozenRows(1);
+  } else if (isOldOrderSheet) {
     sheet.deleteColumns(3, 3);
+    sheet.insertColumnsBefore(4, 2);
+    sheet.getRange(1, 1, 1, HEADERS.Orders.length).setValues([HEADERS.Orders]);
+    sheet.setFrozenRows(1);
   }
 }
 
@@ -202,6 +207,8 @@ function createOrder(payload) {
     id: createOrderId(),
     buyerName: String(payload.buyerName),
     items: payload.items,
+    subtotal: Number(payload.subtotal || 0),
+    shipping: Number(payload.shipping || 0),
     total: Number(payload.total || 0),
     createdAt: new Date().toISOString()
   };
@@ -210,6 +217,8 @@ function createOrder(payload) {
     order.id,
     order.buyerName,
     JSON.stringify(order.items),
+    order.subtotal,
+    order.shipping,
     order.total,
     order.createdAt
   ]);
@@ -298,6 +307,8 @@ function listOrders() {
     id: String(order.id),
     buyerName: String(order.buyerName || ""),
     items: parseJson(order.itemsJson, []),
+    subtotal: Number(order.subtotal || 0),
+    shipping: Number(order.shipping || 0),
     total: Number(order.total || 0),
     createdAt: String(order.createdAt || "")
   })).reverse();

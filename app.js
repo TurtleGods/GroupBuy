@@ -202,6 +202,40 @@
     });
   }
 
+  function bindPaymentMethods() {
+    document.querySelectorAll(".payment-method-card").forEach((button) => {
+      button.addEventListener("click", () => {
+        const form = $("#paymentForm");
+        if (!form) {
+          return;
+        }
+        form.elements.method.value = button.dataset.method === "bank" ? "bank" : "cash";
+        updatePaymentMethodView();
+      });
+    });
+  }
+
+  function bindMobileStepper() {
+    document.querySelectorAll(".mobile-stepper .step").forEach((step) => {
+      step.addEventListener("click", () => {
+        const target = step.dataset.step || "shop";
+        if (target === "search") {
+          state.orderPanel = "search";
+          activateView("order");
+          activateOrderPanel("search");
+          return;
+        }
+        if (target === "order") {
+          state.orderPanel = "my";
+          activateView("order");
+          activateOrderPanel("my");
+          return;
+        }
+        activateView(target);
+      });
+    });
+  }
+
   function activateView(viewName) {
     document.querySelectorAll(".tab").forEach((tab) => {
       tab.classList.toggle("is-active", tab.dataset.view === viewName);
@@ -210,15 +244,72 @@
       view.classList.toggle("is-active", view.id === `${viewName}View`);
     });
     scrollToTop();
+    syncShopCatalog(viewName === "shop");
+    syncShopViewChrome(viewName === "shop");
     if (viewName === "payment") {
+      removeLegacyPaymentSummary();
       loadPublicBoard();
+      renderPaymentCheckout(resolveMyOrder());
+      updatePaymentMethodView();
     }
     if (viewName === "order") {
-      loadPublicBoard().then(() => activateOrderPanel("my"));
+      removeLegacyOrderItems();
+      loadPublicBoard().then(() => {
+        if (state.orderPanel !== "search") {
+          activateOrderPanel("my");
+        }
+      });
     }
     if (viewName === "admin") {
       loadDashboard();
     }
+    updateMobileChrome(viewName);
+  }
+
+  function syncShopCatalog(isVisible) {
+    const productList = $("#productList");
+    if (!productList) {
+      return;
+    }
+
+    if (!isVisible) {
+      productList.innerHTML = "";
+      return;
+    }
+
+    if (state.products.length) {
+      renderProducts();
+      updateCartSummary();
+    }
+  }
+
+  function syncShopViewChrome(isVisible) {
+    const shopView = $("#shopView");
+    if (!shopView) {
+      return;
+    }
+
+    shopView.querySelectorAll(
+      ".shop-hero, .section-head, .delivery-panel, .order-panel"
+    ).forEach((element) => {
+      element.hidden = !isVisible;
+    });
+  }
+
+  function removeLegacyPaymentSummary() {
+    const paymentView = $("#paymentView");
+    if (!paymentView) {
+      return;
+    }
+
+    paymentView.querySelectorAll(
+      ".mobile-order-items, .confirmed-order-items, .payment-order-items, .payment-summary-head, .payment-selected-count"
+    ).forEach((element) => {
+      element.remove();
+    });
+  }
+
+  function removeLegacyOrderItems() {
   }
 
   function activateOrderPanel(panelName) {
@@ -238,6 +329,9 @@
 
     scrollToTop();
     renderActiveOrderPanel();
+    if ($("#orderView")?.classList.contains("is-active")) {
+      updateMobileChrome("order");
+    }
   }
 
   function renderActiveOrderPanel() {
@@ -255,6 +349,38 @@
 
   function scrollToTop() {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
+
+  function updateMobileChrome(viewName = "shop") {
+    const activeTarget = viewName === "order"
+      ? (state.orderPanel === "search" ? "search" : "order")
+      : viewName;
+    const doneTargets = new Set();
+    if (viewName === "payment") {
+      doneTargets.add("shop");
+    }
+    if (viewName === "order") {
+      doneTargets.add("shop");
+      doneTargets.add("payment");
+    }
+
+    document.querySelectorAll(".mobile-stepper .step").forEach((step) => {
+      const target = step.dataset.step || "shop";
+      const isActive = target === activeTarget;
+      const isDone = doneTargets.has(target);
+      step.classList.toggle("is-active", isActive);
+      step.classList.toggle("is-done", isDone);
+    });
+
+    const shopActionsBar = $("#shopActionsBar");
+    if (shopActionsBar) {
+      shopActionsBar.hidden = viewName !== "shop";
+    }
+
+    const paymentActionsBar = $("#paymentActionsBar");
+    if (paymentActionsBar) {
+      paymentActionsBar.hidden = viewName !== "payment";
+    }
   }
 
   function resolveMyOrder() {
@@ -336,12 +462,36 @@
     });
   }
 
+  function calculateOrderTotals(items = []) {
+    const subtotal = items.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
+    const totalQty = items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
+    const shipping = totalQty * 10;
+    const total = subtotal + shipping;
+    return { subtotal, shipping, total, totalQty };
+  }
+
   function updateCartSummary() {
     const items = getCartItems();
-    const totalQty = items.reduce((sum, item) => sum + item.qty, 0);
-    const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+    const { shipping, total, totalQty } = calculateOrderTotals(items);
     $("#itemCount").textContent = String(totalQty);
     $("#orderTotal").textContent = money.format(total);
+    const shippingHint = $("#shippingHint");
+    if (shippingHint) {
+      shippingHint.textContent = `含運費 ${money.format(shipping)}`;
+    }
+    const shopSelectedCount = $("#shopSelectedCount");
+    const shopStickyTotal = $("#shopStickyTotal");
+    if (shopSelectedCount) {
+      shopSelectedCount.textContent = `已選 ${totalQty} 件商品`;
+    }
+    if (shopStickyTotal) {
+      shopStickyTotal.textContent = money.format(total);
+    }
+    const headerCartBadge = $("#headerCartBadge");
+    if (headerCartBadge) {
+      headerCartBadge.textContent = String(totalQty);
+      headerCartBadge.hidden = totalQty <= 0;
+    }
     const orderItemRows = $("#orderItemRows");
     if (orderItemRows) {
       orderItemRows.innerHTML = items.length
@@ -357,11 +507,14 @@
             .join("")
         : `<p class="helper-text">尚未選擇品項</p>`;
     }
+    const deliveryPanelCopy = document.querySelector(".delivery-panel-copy p");
+    if (deliveryPanelCopy) {
+      deliveryPanelCopy.innerHTML = `每件商品加收 <strong>NT$10</strong> 運費，數量 1 = 運費 10 元，數量 5 = 運費 50 元，與商品一併結算。`;
+    }
   }
 
   function bindForms() {
-    const paymentMethod = $("#paymentForm").elements.method;
-    paymentMethod.addEventListener("change", updatePaymentMethodView);
+    bindPaymentMethods();
 
     $("#orderForm").addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -373,10 +526,13 @@
       }
 
       const form = new FormData(formElement);
+      const { subtotal, shipping, total } = calculateOrderTotals(items);
       const payload = {
         buyerName: form.get("buyerName").trim(),
         items,
-        total: items.reduce((sum, item) => sum + item.subtotal, 0)
+        subtotal,
+        shipping,
+        total
       };
 
       const order = await api.request("createOrder", payload);
@@ -481,7 +637,6 @@
     form.elements.orderId.value = order.id || "";
     form.elements.payerName.value = order.buyerName || "";
     form.elements.amount.value = Number(order.total || 0) || "";
-    form.elements.reference.value = "";
     form.elements.method.value = "cash";
     updatePaymentMethodView();
     renderPaymentCheckout(order);
@@ -493,41 +648,45 @@
       return;
     }
 
-    const isTransfer = form.elements.method.value === "bank";
-    $("#transferInfo").hidden = !isTransfer;
-    $("#paymentNotePanel").hidden = !isTransfer;
+    const method = form.elements.method.value === "bank" ? "bank" : "cash";
+    document.querySelectorAll(".payment-method-card").forEach((button) => {
+      const isActive = button.dataset.method === method;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
+    });
+
+    const transferInfo = $("#transferInfo");
+    const paymentNotePanel = $("#paymentNotePanel");
+    if (transferInfo) {
+      transferInfo.hidden = method !== "bank";
+    }
+    if (paymentNotePanel) {
+      paymentNotePanel.hidden = method !== "bank";
+    }
+
     const paymentIntro = $("#paymentIntro");
     if (paymentIntro) {
-      paymentIntro.textContent = isTransfer
-        ? "下單完成，請依下方指示進行付款，完成後再送出訂單。"
-        : "現金：送出訂單後向管理員繳費，請自備剛好金額，不找零。轉帳：匯至指定帳號後，再送出訂單。";
+      paymentIntro.textContent = "下單完成，請依下方資訊進行付款，完成後再送出訂單。";
     }
-    if (!isTransfer) {
+    if (method !== "bank" && form.elements.reference) {
       form.elements.reference.value = "";
     }
   }
 
   function renderPaymentCheckout(order) {
-    const itemRows = $("#paymentOrderItems");
-    const total = $("#paymentOrderTotal");
-    if (!itemRows || !total) {
-      return;
+    const stickyTotal = $("#paymentStickyTotal");
+    const total = order ? money.format(Number(order.total || 0)) : money.format(0);
+    if (stickyTotal) {
+      stickyTotal.textContent = total;
     }
-
-    itemRows.innerHTML = order ? renderOrderItemRows(order.items) : `<p class="helper-text">尚未選擇訂單</p>`;
-    total.textContent = order ? plainAmount(order.total) : "0";
   }
 
   function renderMyOrderPanel(order) {
     const emptyState = $("#orderEmptyState");
     const card = $("#myOrderCard");
     const title = $("#myOrderTitle");
+    const orderItems = $("#confirmedOrderItems");
     if (!emptyState || !card || !title) {
-      return;
-    }
-
-    const itemRows = $("#confirmedOrderItems");
-    if (!itemRows) {
       return;
     }
 
@@ -535,6 +694,9 @@
       title.hidden = true;
       card.hidden = true;
       emptyState.hidden = false;
+      if (orderItems) {
+        orderItems.innerHTML = "";
+      }
       renderOrderSearchResults();
       return;
     }
@@ -542,10 +704,44 @@
     title.hidden = false;
     card.hidden = false;
     emptyState.hidden = true;
-    itemRows.innerHTML = renderOrderItemRows(order.items);
     $("#confirmedOrderTotal").textContent = plainAmount(order.total);
     $("#confirmedBuyerName").value = order.buyerName || "-";
     $("#confirmedOrderId").value = order.id || "-";
+    if (orderItems) {
+      const items = Array.isArray(order.items) ? order.items : [];
+      const shipping = resolveOrderShipping(order, items);
+      orderItems.hidden = !items.length;
+      orderItems.innerHTML = items.length
+        ? `
+          <div class="mobile-order-list">
+            <div class="mobile-order-row order-item-head">
+              <span>品項</span>
+              <span>單價</span>
+              <span>數量</span>
+              <span>小計</span>
+            </div>
+            ${items
+              .map(
+                (item) => `
+                  <div class="mobile-order-row">
+                    <span>${escapeHtml(item.name || "-")}</span>
+                    <span>${money.format(Number(item.price || 0))}</span>
+                    <span>x${Number(item.qty || 0)}</span>
+                    <span>${money.format(Number(item.subtotal || 0))}</span>
+                  </div>
+                `
+              )
+              .join("")}
+            <div class="mobile-order-row order-shipping-row">
+              <span>運費</span>
+              <span>NT$10</span>
+              <span>x${calculateTotalQty(items)}</span>
+              <span>${money.format(shipping)}</span>
+            </div>
+          </div>
+        `
+        : "";
+    }
     renderOrderSearchResults();
   }
 
@@ -577,6 +773,8 @@
       ? matchedOrders
           .map((order) => {
             const status = getPublicOrderStatus(order);
+            const items = Array.isArray(order.items) ? order.items : [];
+            const shipping = resolveOrderShipping(order, items);
             return `
               <article class="order-result-card">
                 <header>
@@ -585,7 +783,36 @@
                   <mark class="order-status ${status.className}">${status.label}</mark>
                 </header>
                 <div class="order-result-items">
-                  ${renderOrderItemRows(order.items)}
+                  <div class="mobile-order-list">
+                    <div class="mobile-order-row order-item-head">
+                      <span>品項</span>
+                      <span>單價</span>
+                      <span>數量</span>
+                      <span>小計</span>
+                    </div>
+                    ${items
+                      .map(
+                        (item) => `
+                          <div class="mobile-order-row">
+                            <span>${escapeHtml(item.name || "-")}</span>
+                            <span>${money.format(Number(item.price || 0))}</span>
+                            <span>x${Number(item.qty || 0)}</span>
+                            <span>${money.format(Number(item.subtotal || 0))}</span>
+                          </div>
+                        `
+                      )
+                      .join("") || `<p class="helper-text">尚未提供品項明細</p>`}
+                    ${items.length
+                      ? `
+                        <div class="mobile-order-row order-shipping-row">
+                          <span>運費</span>
+                          <span>NT$10</span>
+                          <span>x${calculateTotalQty(items)}</span>
+                          <span>${money.format(shipping)}</span>
+                        </div>
+                      `
+                      : ""}
+                  </div>
                 </div>
                 <div class="payment-total-row">
                   <span>總計</span>
@@ -596,6 +823,18 @@
           })
           .join("")
       : `<p class="helper-text">查無訂單。</p>`;
+  }
+
+  function calculateTotalQty(items) {
+    return items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
+  }
+
+  function resolveOrderShipping(order, items = []) {
+    const shipping = Number(order?.shipping || 0);
+    if (shipping > 0) {
+      return shipping;
+    }
+    return calculateTotalQty(items) * 10;
   }
 
   function getPublicOrderStatus(order) {
@@ -614,21 +853,6 @@
       return { className: "pending", label: "處理中" };
     }
     return { className: "unpaid", label: "未付款" };
-  }
-
-  function renderOrderItemRows(items = []) {
-    return items.length
-      ? items
-          .map((item) => `
-            <div class="mobile-order-row">
-              <span>${escapeHtml(item.name)}</span>
-              <span>${money.format(Number(item.price || 0))}</span>
-              <span>x${Number(item.qty || 0)}</span>
-              <span>${money.format(Number(item.subtotal || 0))}</span>
-            </div>
-          `)
-          .join("")
-      : `<p class="helper-text">尚未選擇品項</p>`;
   }
 
   function plainAmount(value) {
@@ -862,12 +1086,15 @@
 
   async function init() {
     bindTabs();
+    bindMobileStepper();
     bindOrderTabs();
     bindForms();
     bindActions();
     await loadProducts();
     await loadPublicBoard();
+    updatePaymentMethodView();
     activateOrderPanel("my");
+    updateMobileChrome("shop");
   }
 
   init().catch((error) => showToast(error.message));
