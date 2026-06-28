@@ -1,13 +1,15 @@
 const SHEETS = {
   products: "Products",
   orders: "Orders",
-  payments: "Payments"
+  payments: "Payments",
+  deletedOrders: "DeletedOrders"
 };
 
 const HEADERS = {
   Products: ["id", "name", "description", "price", "deadline", "color", "imageUrl", "active"],
-  Orders: ["id", "buyerName", "itemsJson", "subtotal", "shipping", "total", "createdAt"],
-  Payments: ["id", "orderId", "payerName", "amount", "method", "reference", "status", "createdAt"]
+  Orders: ["id", "buyerName", "itemsJson", "subtotal", "shipping", "total", "status", "createdAt"],
+  Payments: ["id", "orderId", "payerName", "amount", "method", "reference", "status", "createdAt"],
+  DeletedOrders: ["id", "buyerName", "total", "deletedAt"]
 };
 
 function doPost(event) {
@@ -50,13 +52,31 @@ function route(action, payload) {
   if (action === "dashboard") {
     requireAdmin(payload.adminPassword);
     return {
+      products: listAllProducts(),
       orders: listOrders(),
-      payments: listPayments()
+      payments: listPayments(),
+      deletedCount: countDeletedOrders()
     };
+  }
+  if (action === "createProduct") {
+    requireAdmin(payload.adminPassword);
+    return createProduct(payload);
+  }
+  if (action === "updateProduct") {
+    requireAdmin(payload.adminPassword);
+    return updateProduct(payload);
+  }
+  if (action === "deleteProduct") {
+    requireAdmin(payload.adminPassword);
+    return deleteProduct(payload.productId);
   }
   if (action === "confirmPayment") {
     requireAdmin(payload.adminPassword);
     return confirmPayment(payload.paymentId);
+  }
+  if (action === "updateOrderStatus") {
+    requireAdmin(payload.adminPassword);
+    return updateOrderStatus(payload.orderId, payload.status);
   }
   if (action === "deleteOrder") {
     requireAdmin(payload.adminPassword);
@@ -117,8 +137,10 @@ function migrateOrdersSheet(sheet) {
   const current = sheet.getRange(1, 1, 1, Math.max(lastColumn, 8)).getValues()[0];
   const oldSimpleHeaders = ["id", "buyerName", "itemsJson", "total", "createdAt"];
   const oldLegacyHeaders = ["id", "buyerName", "department", "contact", "note", "itemsJson", "total", "createdAt"];
+  const currentHeaders = ["id", "buyerName", "itemsJson", "subtotal", "shipping", "total", "createdAt"];
   const isSimpleOrderSheet = oldSimpleHeaders.every((header, index) => current[index] === header);
   const isOldOrderSheet = oldLegacyHeaders.every((header, index) => current[index] === header);
+  const isCurrentOrderSheet = currentHeaders.every((header, index) => current[index] === header);
   if (isSimpleOrderSheet) {
     sheet.insertColumnsBefore(4, 2);
     sheet.getRange(1, 1, 1, HEADERS.Orders.length).setValues([HEADERS.Orders]);
@@ -126,6 +148,10 @@ function migrateOrdersSheet(sheet) {
   } else if (isOldOrderSheet) {
     sheet.deleteColumns(3, 3);
     sheet.insertColumnsBefore(4, 2);
+    sheet.getRange(1, 1, 1, HEADERS.Orders.length).setValues([HEADERS.Orders]);
+    sheet.setFrozenRows(1);
+  } else if (isCurrentOrderSheet) {
+    sheet.insertColumnAfter(6);
     sheet.getRange(1, 1, 1, HEADERS.Orders.length).setValues([HEADERS.Orders]);
     sheet.setFrozenRows(1);
   }
@@ -163,17 +189,21 @@ function seedProductsIfEmpty() {
 }
 
 function listProducts() {
-  return readObjects(SHEETS.products)
+  return listAllProducts()
     .filter((product) => product.active === true || String(product.active).toLowerCase() === "true")
-    .map((product) => ({
-      id: String(product.id),
-      name: String(product.name),
-      description: String(product.description || ""),
-      price: Number(product.price || 0),
-      deadline: String(product.deadline || ""),
-      color: String(product.color || "#1d6b73"),
-      imageUrl: normalizeImageUrl(product.imageUrl)
-    }));
+}
+
+function listAllProducts() {
+  return readObjects(SHEETS.products).map((product) => ({
+    id: String(product.id),
+    name: String(product.name),
+    description: String(product.description || ""),
+    price: Number(product.price || 0),
+    deadline: String(product.deadline || ""),
+    color: String(product.color || "#1d6b73"),
+    imageUrl: normalizeImageUrl(product.imageUrl),
+    active: product.active === true || String(product.active).toLowerCase() === "true"
+  }));
 }
 
 function normalizeImageUrl(value) {
@@ -210,6 +240,7 @@ function createOrder(payload) {
     subtotal: Number(payload.subtotal || 0),
     shipping: Number(payload.shipping || 0),
     total: Number(payload.total || 0),
+    status: "unpaid",
     createdAt: new Date().toISOString()
   };
 
@@ -220,11 +251,77 @@ function createOrder(payload) {
     order.subtotal,
     order.shipping,
     order.total,
+    order.status,
     order.createdAt
   ]);
 
   notifyOwner("新團購訂單", `${order.buyerName} 建立訂單 ${order.id}，金額 NT$${order.total}`);
   return order;
+}
+
+function createProduct(payload) {
+  if (!payload.name) {
+    throw new Error("name is required");
+  }
+  const product = {
+    id: "p" + Date.now(),
+    name: String(payload.name),
+    description: String(payload.description || ""),
+    price: Number(payload.price || 0),
+    deadline: String(payload.deadline || ""),
+    color: String(payload.color || "#1d6b73"),
+    imageUrl: String(payload.imageUrl || ""),
+    active: payload.active !== false
+  };
+  getSheet(SHEETS.products).appendRow([
+    product.id,
+    product.name,
+    product.description,
+    product.price,
+    product.deadline,
+    product.color,
+    product.imageUrl,
+    product.active
+  ]);
+  return product;
+}
+
+function updateProduct(payload) {
+  if (!payload.productId) {
+    throw new Error("productId is required");
+  }
+  const sheet = getSheet(SHEETS.products);
+  const rows = readObjects(SHEETS.products);
+  const index = rows.findIndex((product) => String(product.id) === String(payload.productId));
+  if (index === -1) {
+    throw new Error("Product not found");
+  }
+  const rowNumber = index + 2;
+  sheet.getRange(rowNumber, 1, 1, HEADERS.Products.length).setValues([[
+    String(payload.productId),
+    String(payload.name || ""),
+    String(payload.description || ""),
+    Number(payload.price || 0),
+    String(payload.deadline || ""),
+    String(payload.color || "#1d6b73"),
+    String(payload.imageUrl || ""),
+    payload.active !== false
+  ]]);
+  return { ok: true };
+}
+
+function deleteProduct(productId) {
+  if (!productId) {
+    throw new Error("productId is required");
+  }
+  const sheet = getSheet(SHEETS.products);
+  const rows = readObjects(SHEETS.products);
+  const index = rows.findIndex((product) => String(product.id) === String(productId));
+  if (index === -1) {
+    throw new Error("Product not found");
+  }
+  sheet.deleteRow(index + 2);
+  return { ok: true };
 }
 
 function createPayment(payload) {
@@ -275,6 +372,11 @@ function confirmPayment(paymentId) {
   for (let row = 1; row < rows.length; row += 1) {
     if (String(rows[row][idIndex]) === String(paymentId)) {
       sheet.getRange(row + 1, statusIndex + 1).setValue("confirmed");
+      const paymentRow = rows[row];
+      const orderIdIndex = headers.indexOf("orderId");
+      if (orderIdIndex !== -1) {
+        updateOrderStatus(String(paymentRow[orderIdIndex]), "confirmed");
+      }
       return { ok: true };
     }
   }
@@ -282,9 +384,38 @@ function confirmPayment(paymentId) {
   throw new Error("payment not found");
 }
 
+function updateOrderStatus(orderId, status) {
+  if (!orderId) {
+    throw new Error("orderId is required");
+  }
+  if (["unpaid", "confirmed", "canceled"].indexOf(String(status || "")) === -1) {
+    throw new Error("invalid status");
+  }
+
+  const sheet = getSheet(SHEETS.orders);
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const idIndex = headers.indexOf("id");
+  const statusIndex = headers.indexOf("status");
+
+  for (let row = 1; row < rows.length; row += 1) {
+    if (String(rows[row][idIndex]) === String(orderId)) {
+      sheet.getRange(row + 1, statusIndex + 1).setValue(String(status));
+      return { ok: true };
+    }
+  }
+
+  throw new Error("order not found");
+}
+
 function deleteOrder(orderId) {
   if (!orderId) {
     throw new Error("orderId is required");
+  }
+
+  const order = listOrders().find((item) => item.id === orderId);
+  if (order) {
+    archiveDeletedOrder(order);
   }
 
   const orderDeleted = deleteRowsByValue(getSheet(SHEETS.orders), "id", orderId);
@@ -297,9 +428,23 @@ function deleteOrder(orderId) {
 }
 
 function deleteAllOrders() {
+  listOrders().forEach(archiveDeletedOrder);
   clearSheetData(getSheet(SHEETS.orders));
   clearSheetData(getSheet(SHEETS.payments));
   return { ok: true };
+}
+
+function archiveDeletedOrder(order) {
+  getSheet(SHEETS.deletedOrders).appendRow([
+    String(order.id || ""),
+    String(order.buyerName || ""),
+    Number(order.total || 0),
+    new Date().toISOString()
+  ]);
+}
+
+function countDeletedOrders() {
+  return readObjects(SHEETS.deletedOrders).length;
 }
 
 function listOrders() {
@@ -310,6 +455,7 @@ function listOrders() {
     subtotal: Number(order.subtotal || 0),
     shipping: Number(order.shipping || 0),
     total: Number(order.total || 0),
+    status: String(order.status || "unpaid"),
     createdAt: String(order.createdAt || "")
   })).reverse();
 }

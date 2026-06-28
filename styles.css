@@ -27,6 +27,11 @@
 }
 
 @media (max-width: 430px) {
+  .icon-svg {
+    width: 78%;
+    height: 78%;
+  }
+
   .app-header {
     padding: 0.8rem 0.6rem 0.65rem;
   }
@@ -584,8 +589,9 @@ select {
 
 .icon-svg {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: 86%;
+  height: 86%;
+  margin: auto;
   color: currentColor;
   fill: none;
 }
@@ -715,9 +721,16 @@ main {
   background: rgba(255, 250, 240, 0.86);
 }
 
+body[data-view="admin"] .header-menu-button,
+body[data-view="admin"] .tabs {
+  display: none !important;
+}
+
 .tab,
 .ghost-button,
 .primary-button {
+  display: inline-flex;
+  align-items: center;
   min-height: 2.6rem;
   border: 0;
   border-radius: 8px;
@@ -1046,6 +1059,12 @@ main {
   font-weight: var(--weight-body);
 }
 
+.payment-reference-field {
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+  align-items: start;
+}
+
 .payment-identity-panel input,
 .payment-transfer-panel input,
 .payment-note-panel input {
@@ -1082,7 +1101,8 @@ main {
   min-height: 3rem;
   margin-top: 1rem;
   border-radius: 10px;
-  text-align: left;
+  justify-content: center;
+  text-align: center;
   font-size: var(--text-button);
   font-weight: var(--weight-button);
 }
@@ -1179,8 +1199,8 @@ main {
   min-width: 0;
   margin-top: 0;
   white-space: nowrap;
-  text-align: left;
-  justify-content: flex-start;
+  text-align: center;
+  justify-content: center;
 }
 
 .confirmed-order-details {
@@ -1316,6 +1336,21 @@ main {
   font-size: var(--text-meta);
   font-weight: var(--weight-number);
   text-align: center;
+}
+
+.order-status.confirmed {
+  background: #eef5bf;
+  color: var(--ok);
+}
+
+.order-status.unpaid {
+  background: #ffe2a8;
+  color: var(--accent);
+}
+
+.order-status.canceled {
+  background: #ececec;
+  color: #6e6e6e;
 }
 
 .all-order-items {
@@ -1520,6 +1555,16 @@ select {
   text-decoration: none;
 }
 
+.footer-admin-entry {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fffdf8;
+  color: #6f6550;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.52rem 0.95rem;
+}
+
 .metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1546,6 +1591,108 @@ select {
   gap: 1rem;
 }
 
+.admin-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-panel-head h3,
+.admin-product-panel h3 {
+  margin-bottom: 0.25rem;
+}
+
+.admin-panel-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-body);
+}
+
+.admin-product-form {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-product-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.admin-product-fields label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.admin-product-fields input,
+.admin-product-fields textarea {
+  width: 100%;
+  min-height: 2.6rem;
+  padding: 0.72rem 0.82rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fffdf8;
+  font: inherit;
+}
+
+.admin-product-fields textarea {
+  min-height: 6.4rem;
+  resize: vertical;
+}
+
+.admin-product-field-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-product-checkbox {
+  grid-column: 1 / -1;
+  display: flex !important;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.admin-product-checkbox input {
+  width: 1rem;
+  min-height: 1rem;
+}
+
+.admin-product-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-product-meta {
+  margin-top: 0.18rem;
+  color: var(--muted);
+  font-size: var(--text-meta);
+}
+
+.admin-product-list-title {
+  margin: 0 0 0.55rem;
+  color: var(--ink);
+  font-size: var(--text-subtitle);
+  font-weight: var(--weight-subtitle);
+}
+
+.admin-order-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 0.9rem;
+}
+
+.admin-order-filters .small-button.is-active {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -1566,6 +1713,17 @@ td {
 th {
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+#orderList td:nth-child(3) {
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+#orderList td:last-child .small-button {
+  min-height: 1.8rem;
+  padding: 0 0.5rem;
+  font-size: 0.74rem;
 }
 
 .status {
@@ -1591,6 +1749,11 @@ th {
 .status.unpaid {
   background: #ffe2a8;
   color: var(--accent);
+}
+
+.status.canceled {
+  background: #ececec;
+  color: #6e6e6e;
 }
 
 .payment-list {
@@ -1679,13 +1842,15 @@ th {
 }
 
 .small-button.confirm {
-  background: var(--ok);
-  color: white;
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
 }
 
 .small-button.danger {
-  background: #9f3f22;
-  color: white;
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
 }
 
 .toast {
@@ -1706,6 +1871,47 @@ th {
 .toast.is-visible {
   transform: translateY(0);
   opacity: 1;
+}
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  gap: 0.7rem;
+  background: rgba(255, 250, 240, 0.72);
+  backdrop-filter: blur(4px);
+  color: #111111;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.loading-overlay:not(.has-message) {
+  gap: 0;
+}
+
+.loading-overlay:not(.has-message) #loadingOverlayText {
+  display: none;
+}
+
+.loading-overlay[hidden] {
+  display: none;
+}
+
+.loading-spinner {
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 3px solid rgba(231, 184, 0, 0.24);
+  border-top-color: var(--primary);
+  border-radius: 999px;
+  animation: loading-spin 0.75s linear infinite;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 760px) {
@@ -1802,7 +2008,7 @@ th {
 
   .section-head-copy {
     width: 100%;
-    text-align: center;
+    text-align: left;
   }
 
   .section-head h2 {
@@ -2041,7 +2247,8 @@ th {
     border-radius: 6px;
     background: var(--primary);
     color: #111111;
-    text-align: left;
+    justify-content: center;
+    text-align: center;
     font-size: var(--text-button);
     font-weight: var(--weight-button);
   }
@@ -2143,6 +2350,35 @@ th {
     font-weight: 500;
   }
 
+  .order-title-row {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: 0.45rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .order-title-row .order-page-title {
+    margin: 0;
+  }
+
+  .order-status-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.2rem;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .order-status-legend .order-status {
+    min-width: 0;
+    padding: 0.2rem 0.28rem;
+    font-size: 0.63rem;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+  }
+
   .order-empty-state {
     margin-top: 9.1rem;
     color: #9a9a9a;
@@ -2164,11 +2400,6 @@ th {
 
   .order-search-form {
     margin-bottom: 0.9rem;
-  }
-
-  #searchOrderPanel > .order-page-title {
-    margin-top: 0.45rem;
-    margin-bottom: 0.75rem;
   }
 
   .order-search-input {
@@ -2214,6 +2445,7 @@ th {
   }
 
   .order-search-list {
+    display: grid;
     gap: 1rem;
   }
 
@@ -2225,6 +2457,7 @@ th {
   }
 
   .order-result-card header {
+    display: grid;
     grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
     gap: 0.8rem;
     align-items: center;
@@ -2248,6 +2481,8 @@ th {
 
   .order-result-card .order-status {
     min-width: 3.25rem;
+    margin-left: auto;
+    justify-self: end;
     padding: 0.22rem 0.4rem;
     font-size: 0.72rem;
   }
@@ -2342,10 +2577,15 @@ th {
     background: #ffffff;
     font-size: var(--text-button);
     font-weight: var(--weight-button);
+    line-height: 1;
+    text-align: center;
     user-select: none;
   }
 
   .mobile-stepper .step-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: var(--text-button);
     line-height: 1;
   }
@@ -2390,18 +2630,20 @@ th {
   #shopView .section-head {
     margin: 0;
     padding: 0 0.1rem;
+    text-align: left;
   }
 
   #shopView .section-head-copy h2 {
     font-size: 1.05rem;
     font-weight: 700;
+    text-align: left;
   }
 
   .shop-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 3.65rem minmax(0, 1fr);
     align-items: center;
-    gap: 0;
+    gap: 0.85rem;
     padding: 0.9rem 1rem;
     border: 1px solid #ece1bb;
     border-radius: 16px;
@@ -2409,38 +2651,49 @@ th {
     box-shadow: 0 9px 18px rgba(41, 28, 0, 0.16);
   }
 
-.shop-hero-copy h2 {
-  margin-bottom: 0.5rem;
-  font-size: var(--text-title);
-  font-weight: var(--weight-title);
-  text-align: center;
-}
+  .shop-hero-icon {
+    display: grid;
+    width: 3.65rem;
+    height: 3.65rem;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(231, 184, 0, 0.22);
+    color: #d8a800;
+  }
+
+  .shop-hero-copy {
+    display: grid;
+    gap: 0.5rem;
+  }
 
   .shop-hero-dates {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0;
+    gap: 0.85rem;
     margin: 0;
   }
 
   .shop-hero-dates div {
     display: grid;
-    gap: 0.15rem;
-    padding: 0 0.85rem;
-    border-left: 1px solid #d8cfb4;
+    gap: 0.14rem;
+    padding: 0;
+    justify-items: start;
+    text-align: left;
   }
 
 .shop-hero-dates dt {
-  color: #111111;
-  font-size: var(--text-subtitle);
-  font-weight: var(--weight-title);
+  color: #6f6550;
+  font-size: var(--text-button);
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .shop-hero-dates dd {
   margin: 0;
-  color: #5f5f5f;
-  font-size: var(--text-meta);
-  line-height: 1.4;
+  color: #111111;
+  font-size: var(--text-button);
+  font-weight: 700;
+  line-height: 1.2;
 }
 
   .delivery-panel {
@@ -2624,6 +2877,16 @@ th {
     font-size: 0.9rem;
   }
 
+  .payment-note-panel .payment-reference-field .payment-field-label {
+    white-space: nowrap;
+  }
+
+  .payment-note-panel .payment-reference-field {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+    align-items: start;
+  }
+
   .payment-methods-wrap {
     display: grid;
     gap: 0.6rem;
@@ -2632,6 +2895,11 @@ th {
   .payment-methods-head {
     margin: 0;
     padding: 0 0.1rem;
+    text-align: left;
+  }
+
+  .payment-methods-head > div {
+    text-align: left;
   }
 
 .payment-methods-head h3 {
@@ -2855,8 +3123,8 @@ th {
     min-width: 0;
     margin-top: 0;
     white-space: nowrap;
-    text-align: left;
-    justify-content: flex-start;
+    text-align: center;
+    justify-content: center;
     font-size: var(--text-button);
     font-weight: var(--weight-button);
   }
@@ -2895,8 +3163,17 @@ th {
     background: transparent;
   }
 
+  .footer-admin-entry {
+    padding: 0.45rem 0.9rem;
+    font-size: 0.78rem;
+  }
+
   .admin-grid,
   .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-product-fields {
     grid-template-columns: 1fr;
   }
 }

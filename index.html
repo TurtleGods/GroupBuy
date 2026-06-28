@@ -48,10 +48,16 @@
     </section>
 
     <main>
-      <section class="view is-active" id="shopView" aria-labelledby="shopTitle">
+      <section class="view is-active" id="shopView" aria-label="本期團購與選購商品">
         <section class="shop-hero panel">
+          <div class="shop-hero-icon" aria-hidden="true">
+            <svg class="icon-svg" viewBox="0 0 24 24">
+              <rect x="4.5" y="5.5" width="15" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"></rect>
+              <path d="M8 3.8v3.4M16 3.8v3.4M4.5 9.2h15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+              <path d="M8.2 12.4h.01M12 12.4h.01M15.8 12.4h.01M8.2 15.6h.01M12 15.6h.01M15.8 15.6h.01" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path>
+            </svg>
+          </div>
           <div class="shop-hero-copy">
-            <h2 id="shopTitle">本期團購</h2>
             <dl class="shop-hero-dates">
               <div>
                 <dt>6/30 16:00</dt>
@@ -203,7 +209,7 @@
           <div class="payment-note-panel" id="paymentNotePanel" hidden>
             <label class="payment-field payment-reference-field">
               <span class="payment-field-label">請輸入匯款帳號末五碼</span>
-              <input name="reference" placeholder="99865">
+              <input name="reference" placeholder="99865" inputmode="numeric" pattern="[0-9]{5}" maxlength="5">
             </label>
             <p class="payment-note-text">* 填寫完成後，將核對帳號。</p>
           </div>
@@ -243,7 +249,7 @@
         </section>
 
         <section class="order-subview" id="searchOrderPanel" aria-labelledby="searchOrderTitle" hidden>
-          <h2 class="order-page-title" id="searchOrderTitle">訂購人資料</h2>
+          <h2 class="order-page-title" id="searchOrderTitle">訂單查詢</h2>
           <form class="order-search-form" id="orderSearchForm">
             <label class="order-search-input">
               <span class="sr-only">請輸入姓名</span>
@@ -258,7 +264,14 @@
           </form>
 
           <section class="order-search-results" id="orderSearchResults" hidden>
-            <h2 class="order-page-title">搜尋結果</h2>
+            <div class="order-title-row">
+              <h2 class="order-page-title">搜尋結果</h2>
+              <div class="order-status-legend" aria-label="付款狀態說明">
+                <span class="order-status unpaid">未付款｜訂單確認中</span>
+                <span class="order-status confirmed">已付款｜訂單確認後</span>
+                <span class="order-status canceled">已取消｜訂單取消</span>
+              </div>
+            </div>
             <div class="order-search-list" id="orderSearchList"></div>
           </section>
         </section>
@@ -290,22 +303,91 @@
         </div>
         <div class="metrics">
           <div class="metric">
-            <span>訂單數</span>
+            <span>全部訂單</span>
             <strong id="metricOrders">0</strong>
           </div>
           <div class="metric">
-            <span>應收</span>
-            <strong id="metricDue">NT$0</strong>
+            <span>目前上架商品</span>
+            <strong id="metricActiveProducts">0</strong>
           </div>
           <div class="metric">
-            <span>已確認</span>
-            <strong id="metricPaid">NT$0</strong>
+            <span>已付款</span>
+            <strong id="metricConfirmed">0</strong>
           </div>
           <div class="metric">
-            <span>待確認</span>
-            <strong id="metricPending">0</strong>
+            <span>未付款</span>
+            <strong id="metricUnpaid">0</strong>
+          </div>
+          <div class="metric">
+            <span>已取消</span>
+            <strong id="metricCanceled">0</strong>
+          </div>
+          <div class="metric">
+            <span>已刪除</span>
+            <strong id="metricDeleted">0</strong>
           </div>
         </div>
+
+        <section class="panel admin-product-panel">
+          <div class="admin-panel-head">
+            <div>
+              <h3>商品管理</h3>
+              <p>可在這裡新增商品，或編輯已上架商品的價錢、商品描述，並刪除商品。</p>
+            </div>
+          </div>
+          <form class="admin-product-form" id="adminProductForm">
+            <input name="productId" type="hidden">
+            <div class="admin-product-fields">
+              <label>
+                商品名稱
+                <input name="name" required placeholder="例如：頂級愛文芒果 6入">
+              </label>
+              <label>
+                價格
+                <input name="price" type="number" min="0" step="1" required placeholder="420">
+              </label>
+              <label class="admin-product-field-wide">
+                商品描述
+                <textarea name="description" rows="3" placeholder="商品描述"></textarea>
+              </label>
+              <label>
+                截止說明
+                <input name="deadline" placeholder="例如：7/1 16:00 前">
+              </label>
+              <label>
+                色碼
+                <input name="color" placeholder="#1d6b73">
+              </label>
+              <label class="admin-product-field-wide">
+                圖片網址
+                <input name="imageUrl" placeholder="https://...">
+              </label>
+              <label class="admin-product-checkbox">
+                <input name="active" type="checkbox" checked>
+                <span>上架中</span>
+              </label>
+            </div>
+            <div class="admin-product-actions">
+              <button class="primary-button" type="submit" id="saveProductButton">儲存商品</button>
+              <button class="ghost-button" type="button" id="resetProductFormButton">清空</button>
+            </div>
+          </form>
+          <div class="table-wrap">
+            <p class="admin-product-list-title">目前商品列表</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>商品</th>
+                  <th>描述</th>
+                  <th>價格</th>
+                  <th>狀態</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="adminProductList"></tbody>
+            </table>
+          </div>
+        </section>
 
         <div class="admin-grid">
           <section class="panel">
@@ -323,15 +405,16 @@
               </table>
             </div>
           </section>
-
-          <section class="panel">
-            <h3>付款回報</h3>
-            <div class="payment-list" id="paymentList"></div>
-          </section>
         </div>
 
         <section class="panel">
           <h3>訂單明細</h3>
+          <div class="admin-order-filters" id="adminOrderFilters">
+            <button class="small-button is-active" type="button" data-order-filter="all">全部</button>
+            <button class="small-button" type="button" data-order-filter="unpaid">未付款</button>
+            <button class="small-button confirm" type="button" data-order-filter="confirmed">已付款</button>
+            <button class="small-button" type="button" data-order-filter="canceled">已取消</button>
+          </div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -378,6 +461,11 @@
         </div>
       </a>
     </footer>
+
+    <div class="loading-overlay" id="loadingOverlay" hidden aria-live="polite" aria-label="載入中">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <span id="loadingOverlayText">載入中，先講個笑話，什麼鴨子用兩隻腳走路？</span>
+    </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

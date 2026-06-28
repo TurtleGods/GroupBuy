@@ -43,6 +43,7 @@
 
   const state = {
     products: [],
+    adminProducts: [],
     orders: [],
     payments: [],
     publicOrders: [],
@@ -52,7 +53,9 @@
     adminPassword: sessionStorage.getItem("groupbuy.adminPassword") || "",
     currentOrderId: sessionStorage.getItem("groupbuy.currentOrderId") || "",
     orderPanel: "my",
-    orderSearchQuery: ""
+    orderSearchQuery: "",
+    adminOrderFilter: "all",
+    deletedCount: 0
   };
 
   const storage = {
@@ -67,6 +70,16 @@
       localStorage.setItem(key, JSON.stringify(value));
     }
   };
+
+  function getLocalProducts() {
+    const stored = storage.get("groupbuy.products", null);
+    if (Array.isArray(stored) && stored.length) {
+      return stored;
+    }
+    const seeded = demoProducts.map((product) => ({ ...product, imageUrl: product.imageUrl || "", active: true }));
+    storage.set("groupbuy.products", seeded);
+    return seeded;
+  }
 
   const api = {
     async request(action, payload = {}) {
@@ -86,23 +99,34 @@
 
       const data = await response.json();
       if (!data.ok) {
-        throw new Error(data.error || "操作失敗");
+        const message = String(data.error || "操作失敗");
+        if (
+          message.includes("Unknown action: createProduct") ||
+          message.includes("Unknown action: updateProduct") ||
+          message.includes("Unknown action: deleteProduct") ||
+          message.includes("Unknown action: updateOrderStatus")
+        ) {
+          throw new Error("後台 API 還是舊版，請重新部署 Google Apps Script Web App。");
+        }
+        throw new Error(message);
       }
       return data.result;
     }
   };
 
   function localRequest(action, payload) {
+    const products = getLocalProducts();
     const orders = storage.get("groupbuy.orders", []);
     const payments = storage.get("groupbuy.payments", []);
 
     if (action === "listProducts") {
-      return Promise.resolve(demoProducts);
+      return Promise.resolve(products.filter((product) => product.active !== false));
     }
     if (action === "createOrder") {
       const order = {
         ...payload,
         id: createOrderId(orders.length + 1),
+        status: "unpaid",
         createdAt: new Date().toISOString()
       };
       storage.set("groupbuy.orders", [order, ...orders]);
@@ -129,13 +153,82 @@
       });
     }
     if (action === "dashboard") {
-      return Promise.resolve({ orders, payments });
+      return Promise.resolve({
+        orders,
+        payments,
+        products,
+        deletedCount: Number(storage.get("groupbuy.deletedOrderCount", 0) || 0)
+      });
+    }
+    if (action === "createProduct") {
+      const product = {
+        id: `p${Date.now()}`,
+        name: String(payload.name || "").trim(),
+        description: String(payload.description || "").trim(),
+        price: Number(payload.price || 0),
+        deadline: String(payload.deadline || "").trim(),
+        color: String(payload.color || "#1d6b73").trim() || "#1d6b73",
+        imageUrl: String(payload.imageUrl || "").trim(),
+        active: payload.active !== false
+      };
+      storage.set("groupbuy.products", [product, ...products]);
+      return Promise.resolve(product);
+    }
+    if (action === "updateProduct") {
+      const productExists = products.some((product) => product.id === payload.productId);
+      if (!productExists) {
+        return Promise.reject(new Error("找不到商品"));
+      }
+      const updatedProducts = products.map((product) =>
+        product.id === payload.productId
+          ? {
+              ...product,
+              name: String(payload.name || "").trim(),
+              description: String(payload.description || "").trim(),
+              price: Number(payload.price || 0),
+              deadline: String(payload.deadline || "").trim(),
+              color: String(payload.color || "#1d6b73").trim() || "#1d6b73",
+              imageUrl: String(payload.imageUrl || "").trim(),
+              active: payload.active !== false
+            }
+          : product
+      );
+      storage.set("groupbuy.products", updatedProducts);
+      return Promise.resolve({ ok: true });
+    }
+    if (action === "deleteProduct") {
+      const productExists = products.some((product) => product.id === payload.productId);
+      if (!productExists) {
+        return Promise.reject(new Error("找不到商品"));
+      }
+      storage.set("groupbuy.products", products.filter((product) => product.id !== payload.productId));
+      return Promise.resolve({ ok: true });
     }
     if (action === "confirmPayment") {
       const updated = payments.map((payment) =>
         payment.id === payload.paymentId ? { ...payment, status: "confirmed" } : payment
       );
       storage.set("groupbuy.payments", updated);
+      const payment = updated.find((item) => item.id === payload.paymentId);
+      if (payment) {
+        storage.set(
+          "groupbuy.orders",
+          orders.map((order) => order.id === payment.orderId ? { ...order, status: "confirmed" } : order)
+        );
+      }
+      return Promise.resolve({ ok: true });
+    }
+    if (action === "updateOrderStatus") {
+      const orderExists = orders.some((order) => order.id === payload.orderId);
+      if (!orderExists) {
+        return Promise.reject(new Error("找不到訂單"));
+      }
+      storage.set(
+        "groupbuy.orders",
+        orders.map((order) =>
+          order.id === payload.orderId ? { ...order, status: String(payload.status || "unpaid") } : order
+        )
+      );
       return Promise.resolve({ ok: true });
     }
     if (action === "deleteOrder") {
@@ -143,11 +236,19 @@
       if (!orderExists) {
         return Promise.reject(new Error("找不到訂單"));
       }
+      storage.set(
+        "groupbuy.deletedOrderCount",
+        Number(storage.get("groupbuy.deletedOrderCount", 0) || 0) + 1
+      );
       storage.set("groupbuy.orders", orders.filter((order) => order.id !== payload.orderId));
       storage.set("groupbuy.payments", payments.filter((payment) => payment.orderId !== payload.orderId));
       return Promise.resolve({ ok: true });
     }
     if (action === "deleteAllOrders") {
+      storage.set(
+        "groupbuy.deletedOrderCount",
+        Number(storage.get("groupbuy.deletedOrderCount", 0) || 0) + orders.length
+      );
       storage.set("groupbuy.orders", []);
       storage.set("groupbuy.payments", []);
       sessionStorage.removeItem("groupbuy.currentOrder");
@@ -170,11 +271,73 @@
     return document.querySelector(selector);
   }
 
+  function matchesAdminEntryHash() {
+    return Boolean(config.adminEntryHash) && window.location.hash === config.adminEntryHash;
+  }
+
+  function consumeAdminEntryHash() {
+    if (!matchesAdminEntryHash()) {
+      return false;
+    }
+    const cleanUrl = `${window.location.pathname}${window.location.search}`;
+    window.history.replaceState(null, "", cleanUrl);
+    return true;
+  }
+
   function showToast(message) {
     const toast = $("#toast");
     toast.textContent = message;
     toast.classList.add("is-visible");
     window.setTimeout(() => toast.classList.remove("is-visible"), 3200);
+  }
+
+  let loadingToken = 0;
+  const LOADING_MIN_MS = 220;
+  const LOADING_JOKES = [
+    "載入中，先講個笑話：什麼鴨子用兩隻腳走路？ A：所有鴨子。",
+    "載入中，先講個笑話：什麼魚最晚下班？ A：摸魚。",
+    "載入中，先講個笑話：什麼麵不能吃？ A：見一面。",
+    "載入中，先講個笑話：什麼熊最忙？ A：工讀生。",
+    "載入中，先講個笑話：什麼水果最會聊天？ A：芒果，因為很忙。"
+  ];
+
+  function randomLoadingJoke() {
+    return LOADING_JOKES[Math.floor(Math.random() * LOADING_JOKES.length)];
+  }
+
+  function showLoading(message) {
+    const overlay = $("#loadingOverlay");
+    const overlayText = $("#loadingOverlayText");
+    if (!overlay) {
+      return { token: 0, startedAt: performance.now() };
+    }
+    loadingToken += 1;
+    if (overlayText) {
+      overlayText.textContent = message || "";
+    }
+    overlay.classList.toggle("has-message", Boolean(message));
+    overlay.hidden = false;
+    overlay.classList.add("is-visible");
+    overlay.getBoundingClientRect();
+    return { token: loadingToken, startedAt: performance.now() };
+  }
+
+  function hideLoading(token) {
+    const overlay = $("#loadingOverlay");
+    if (!overlay || token !== loadingToken) {
+      return;
+    }
+    overlay.classList.remove("is-visible");
+    overlay.classList.remove("has-message");
+    overlay.hidden = true;
+  }
+
+  function nextFrame() {
+    return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
+  }
+
+  function wait(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
   }
 
   function readSessionJSON(key) {
@@ -188,8 +351,8 @@
 
   function bindTabs() {
     document.querySelectorAll(".tab").forEach((button) => {
-      button.addEventListener("click", () => {
-        activateView(button.dataset.view);
+      button.addEventListener("click", async () => {
+        await activateView(button.dataset.view);
       });
     });
   }
@@ -217,26 +380,29 @@
 
   function bindMobileStepper() {
     document.querySelectorAll(".mobile-stepper .step").forEach((step) => {
-      step.addEventListener("click", () => {
+      step.addEventListener("click", async () => {
         const target = step.dataset.step || "shop";
         if (target === "search") {
           state.orderPanel = "search";
-          activateView("order");
+          await activateView("order");
           activateOrderPanel("search");
           return;
         }
         if (target === "order") {
           state.orderPanel = "my";
-          activateView("order");
+          await activateView("order");
           activateOrderPanel("my");
           return;
         }
-        activateView(target);
+        await activateView(target);
       });
     });
   }
 
-  function activateView(viewName) {
+  async function activateView(viewName) {
+    const loading = showLoading();
+    await wait(16);
+    document.body.dataset.view = viewName;
     document.querySelectorAll(".tab").forEach((tab) => {
       tab.classList.toggle("is-active", tab.dataset.view === viewName);
     });
@@ -246,24 +412,31 @@
     scrollToTop();
     syncShopCatalog(viewName === "shop");
     syncShopViewChrome(viewName === "shop");
-    if (viewName === "payment") {
-      removeLegacyPaymentSummary();
-      loadPublicBoard();
-      renderPaymentCheckout(resolveMyOrder());
-      updatePaymentMethodView();
-    }
-    if (viewName === "order") {
-      removeLegacyOrderItems();
-      loadPublicBoard().then(() => {
+    try {
+      if (viewName === "payment") {
+        removeLegacyPaymentSummary();
+        await loadPublicBoard();
+        renderPaymentCheckout(resolveMyOrder());
+        updatePaymentMethodView();
+      }
+      if (viewName === "order") {
+        removeLegacyOrderItems();
+        await loadPublicBoard();
         if (state.orderPanel !== "search") {
           activateOrderPanel("my");
         }
-      });
+      }
+      if (viewName === "admin") {
+        await loadDashboard();
+      }
+      updateMobileChrome(viewName);
+    } finally {
+      const elapsed = performance.now() - loading.startedAt;
+      if (elapsed < LOADING_MIN_MS) {
+        await wait(LOADING_MIN_MS - elapsed);
+      }
+      hideLoading(loading.token);
     }
-    if (viewName === "admin") {
-      loadDashboard();
-    }
-    updateMobileChrome(viewName);
   }
 
   function syncShopCatalog(isVisible) {
@@ -525,56 +698,76 @@
         return;
       }
 
-      const form = new FormData(formElement);
-      const { subtotal, shipping, total } = calculateOrderTotals(items);
-      const payload = {
-        buyerName: form.get("buyerName").trim(),
-        items,
-        subtotal,
-        shipping,
-        total
-      };
+      const loading = showLoading(randomLoadingJoke());
 
-      const order = await api.request("createOrder", payload);
-      state.currentOrder = order;
-      state.currentOrderId = order.id || "";
-      sessionStorage.setItem("groupbuy.currentOrder", JSON.stringify(order));
-      sessionStorage.setItem("groupbuy.currentOrderId", state.currentOrderId);
-      state.cart.clear();
-      formElement.reset();
-      renderProducts();
-      updateCartSummary();
-      await loadPublicBoard();
-      prefillPaymentForm(order);
-      activateView("payment");
-      showToast(`訂單已建立：${order.id}`);
+      try {
+        const form = new FormData(formElement);
+        const { subtotal, shipping, total } = calculateOrderTotals(items);
+        const payload = {
+          buyerName: form.get("buyerName").trim(),
+          items,
+          subtotal,
+          shipping,
+          total
+        };
+
+        const order = await api.request("createOrder", payload);
+        state.currentOrder = order;
+        state.currentOrderId = order.id || "";
+        sessionStorage.setItem("groupbuy.currentOrder", JSON.stringify(order));
+        sessionStorage.setItem("groupbuy.currentOrderId", state.currentOrderId);
+        state.cart.clear();
+        formElement.reset();
+        renderProducts();
+        updateCartSummary();
+        await loadPublicBoard();
+        prefillPaymentForm(order);
+        await activateView("payment");
+        showToast(`訂單已建立：${order.id}`);
+      } catch (error) {
+        hideLoading(loading.token);
+        showToast(error.message);
+      }
     });
 
     $("#paymentForm").addEventListener("submit", async (event) => {
       event.preventDefault();
       const formElement = event.currentTarget;
-      const form = new FormData(formElement);
-      const payload = {
-        orderId: form.get("orderId").trim(),
-        payerName: form.get("payerName").trim(),
-        amount: Number(form.get("amount")),
-        method: form.get("method"),
-        reference: form.get("reference").trim()
-      };
-      await api.request("createPayment", payload);
-      await loadPublicBoard();
-      const targetOrder = state.publicOrders.find((order) => order.id === payload.orderId);
-      if (targetOrder && targetOrder.id === state.currentOrderId) {
-        state.currentOrder = targetOrder;
-        sessionStorage.setItem("groupbuy.currentOrder", JSON.stringify(targetOrder));
+      const method = formElement.elements.method?.value === "bank" ? "bank" : "cash";
+      const referenceValue = String(formElement.elements.reference?.value || "").trim();
+      if (method === "bank" && !/^\d{5}$/.test(referenceValue)) {
+        showToast("請輸入 5 碼數字的匯款帳號末五碼。");
+        formElement.elements.reference?.focus();
+        return;
       }
-      formElement.reset();
-      updatePaymentMethodView();
-      renderPaymentCheckout(null);
-      renderMyOrderPanel(resolveMyOrder());
-      activateView("order");
-      activateOrderPanel("my");
-      showToast(payload.method === "cash" ? "現金付款資訊已送出。" : "付款回報已送出，狀態為待確認。");
+      const loading = showLoading(randomLoadingJoke());
+      try {
+        const form = new FormData(formElement);
+        const payload = {
+          orderId: form.get("orderId").trim(),
+          payerName: form.get("payerName").trim(),
+          amount: Number(form.get("amount")),
+          method: form.get("method"),
+          reference: referenceValue
+        };
+        await api.request("createPayment", payload);
+        await loadPublicBoard();
+        const targetOrder = state.publicOrders.find((order) => order.id === payload.orderId);
+        if (targetOrder && targetOrder.id === state.currentOrderId) {
+          state.currentOrder = targetOrder;
+          sessionStorage.setItem("groupbuy.currentOrder", JSON.stringify(targetOrder));
+        }
+        formElement.reset();
+        updatePaymentMethodView();
+        renderPaymentCheckout(null);
+        renderMyOrderPanel(resolveMyOrder());
+        await activateView("order");
+        activateOrderPanel("my");
+        showToast(payload.method === "cash" ? "現金付款資訊已送出。" : "付款回報已送出，狀態為待確認。");
+      } catch (error) {
+        hideLoading(loading.token);
+        showToast(error.message);
+      }
     });
 
     $("#orderSearchForm").addEventListener("submit", (event) => {
@@ -603,6 +796,8 @@
       const data = await api.request("dashboard", { adminPassword: state.adminPassword });
       state.orders = data.orders || [];
       state.payments = data.payments || [];
+      state.adminProducts = data.products || [];
+      state.deletedCount = Number(data.deletedCount || 0);
       setAdminLocked(false);
       renderDashboard();
     } catch (error) {
@@ -838,6 +1033,15 @@
   }
 
   function getPublicOrderStatus(order) {
+    if (order?.status === "canceled") {
+      return { className: "canceled", label: "已取消" };
+    }
+    if (order?.status === "confirmed") {
+      return { className: "confirmed", label: "已付款" };
+    }
+    if (order?.status === "unpaid") {
+      return { className: "unpaid", label: "未付款" };
+    }
     const orderTotal = Number(order.total || 0);
     const paidAmount = state.publicPayments
       .filter((payment) => payment.orderId === order.id && payment.status === "confirmed")
@@ -865,19 +1069,94 @@
   }
 
   function renderDashboard() {
-    const confirmed = state.payments.filter((payment) => payment.status === "confirmed");
-    const pending = state.payments.filter((payment) => payment.status !== "confirmed");
-    const due = state.orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
-    const paid = confirmed.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const totalCount = state.orders.length;
+    const activeProductsCount = state.adminProducts.filter((product) => product.active !== false).length;
+    const confirmedCount = state.orders.filter((order) => order.status === "confirmed").length;
+    const canceledCount = state.orders.filter((order) => order.status === "canceled").length;
+    const unpaidCount = state.orders.filter((order) => (order.status || "unpaid") === "unpaid").length;
 
-    $("#metricOrders").textContent = String(state.orders.length);
-    $("#metricDue").textContent = money.format(due);
-    $("#metricPaid").textContent = money.format(paid);
-    $("#metricPending").textContent = String(pending.length);
+    $("#metricOrders").textContent = String(totalCount);
+    $("#metricActiveProducts").textContent = String(activeProductsCount);
+    $("#metricConfirmed").textContent = String(confirmedCount);
+    $("#metricUnpaid").textContent = String(unpaidCount);
+    $("#metricCanceled").textContent = String(canceledCount);
+    $("#metricDeleted").textContent = String(state.deletedCount || 0);
 
     renderProductSummary();
+    renderAdminProducts();
     renderOrders();
     renderPayments();
+  }
+
+  function resetAdminProductForm(product = null) {
+    const form = $("#adminProductForm");
+    if (!form) {
+      return;
+    }
+    form.reset();
+    form.elements.productId.value = product?.id || "";
+    form.elements.name.value = product?.name || "";
+    form.elements.description.value = product?.description || "";
+    form.elements.price.value = product?.price ?? "";
+    form.elements.deadline.value = product?.deadline || "";
+    form.elements.color.value = product?.color || "";
+    form.elements.imageUrl.value = product?.imageUrl || "";
+    form.elements.active.checked = product ? product.active !== false : true;
+    const saveButton = $("#saveProductButton");
+    if (saveButton) {
+      saveButton.textContent = product ? "更新商品" : "儲存商品";
+    }
+  }
+
+  function renderAdminProducts() {
+    const list = $("#adminProductList");
+    if (!list) {
+      return;
+    }
+
+    list.innerHTML = state.adminProducts.length
+      ? state.adminProducts
+          .map((product) => `
+            <tr>
+              <td>
+                <strong>${escapeHtml(product.name || "-")}</strong>
+                <div class="admin-product-meta">${escapeHtml(product.deadline || "")}</div>
+              </td>
+              <td>${escapeHtml(product.description || "-")}</td>
+              <td>${money.format(Number(product.price || 0))}</td>
+              <td><span class="status ${product.active === false ? "unpaid" : "confirmed"}">${product.active === false ? "已下架" : "上架中"}</span></td>
+              <td>
+                <button class="small-button" type="button" data-edit-product-id="${escapeAttribute(product.id)}">修改價格/描述</button>
+                <button class="small-button danger" type="button" data-delete-product-id="${escapeAttribute(product.id)}">刪除</button>
+              </td>
+            </tr>
+          `)
+          .join("")
+      : `<tr><td colspan="5">目前沒有商品</td></tr>`;
+
+    document.querySelectorAll("[data-edit-product-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const product = state.adminProducts.find((item) => item.id === button.dataset.editProductId);
+        resetAdminProductForm(product || null);
+      });
+    });
+
+    document.querySelectorAll("[data-delete-product-id]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const productId = button.dataset.deleteProductId;
+        const product = state.adminProducts.find((item) => item.id === productId);
+        if (!window.confirm(`確定要刪除商品 ${product?.name || productId}？`)) {
+          return;
+        }
+        await api.request("deleteProduct", {
+          productId,
+          adminPassword: state.adminPassword
+        });
+        await loadDashboard();
+        await loadProducts();
+        showToast("商品已刪除。");
+      });
+    });
   }
 
   function renderProductSummary() {
@@ -903,26 +1182,76 @@
   }
 
   function renderOrders() {
-    $("#orderList").innerHTML = state.orders
+    const visibleOrders = state.adminOrderFilter === "all"
+      ? state.orders
+      : state.orders.filter((order) => {
+          const status = ["confirmed", "canceled", "unpaid"].includes(order.status) ? order.status : "unpaid";
+          return status === state.adminOrderFilter;
+        });
+
+    $("#orderList").innerHTML = visibleOrders
       .map((order) => {
-        const confirmedAmount = state.payments
-          .filter((payment) => payment.orderId === order.id && payment.status === "confirmed")
-          .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-        const status = confirmedAmount >= Number(order.total || 0) ? "confirmed" : "unpaid";
+        const status = ["confirmed", "canceled", "unpaid"].includes(order.status) ? order.status : "unpaid";
+        const items = order.items || [];
+        const subtotal = items.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
+        const shipping = resolveOrderShipping(order, items);
+        const amount = subtotal + shipping;
         return `
           <tr>
             <td>${escapeHtml(order.id)}</td>
             <td>${escapeHtml(order.buyerName)}</td>
-            <td>${(order.items || []).map((item) => `${escapeHtml(item.name)} x ${item.qty}`).join("<br>")}</td>
-            <td>${money.format(Number(order.total || 0))}</td>
-            <td><span class="status ${status}">${status === "confirmed" ? "已付款" : "未結清"}</span></td>
             <td>
+              ${items
+                .map(
+                  (item) =>
+                    `${escapeHtml(item.name)}｜${money.format(Number(item.price || 0))} x ${Number(item.qty || 0)} = ${money.format(Number(item.subtotal || 0))}`
+                )
+                .join("<br>")}
+              <br>
+              運費｜NT$10 x ${calculateTotalQty(items)} = ${money.format(shipping)}
+            </td>
+            <td>${money.format(amount)}</td>
+            <td><span class="status ${status}">${status === "confirmed" ? "已付款" : status === "canceled" ? "已取消" : "未付款"}</span></td>
+            <td>
+              <button class="small-button" type="button" data-order-status="unpaid" data-order-id="${escapeAttribute(order.id)}">未付款</button>
+              <button class="small-button confirm" type="button" data-order-status="confirmed" data-order-id="${escapeAttribute(order.id)}">已付款</button>
+              <button class="small-button" type="button" data-order-status="canceled" data-order-id="${escapeAttribute(order.id)}">已取消</button>
               <button class="small-button danger" type="button" data-delete-order-id="${escapeAttribute(order.id)}">刪除</button>
             </td>
           </tr>
         `;
       })
       .join("") || `<tr><td colspan="6">目前沒有訂單</td></tr>`;
+
+    document.querySelectorAll("[data-order-filter]").forEach((button) => {
+      button.classList.toggle("is-active", button.dataset.orderFilter === state.adminOrderFilter);
+      button.addEventListener("click", () => {
+        state.adminOrderFilter = button.dataset.orderFilter || "all";
+        renderOrders();
+      });
+    });
+
+    document.querySelectorAll("[data-order-status]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const nextStatus = button.dataset.orderStatus || "unpaid";
+        const orderId = button.dataset.orderId;
+        state.orders = state.orders.map((order) =>
+          order.id === orderId ? { ...order, status: nextStatus } : order
+        );
+        state.publicOrders = state.publicOrders.map((order) =>
+          order.id === orderId ? { ...order, status: nextStatus } : order
+        );
+        renderOrders();
+        await api.request("updateOrderStatus", {
+          orderId,
+          status: nextStatus,
+          adminPassword: state.adminPassword
+        });
+        await loadDashboard();
+        await loadPublicBoard();
+        showToast("訂單狀態已更新。");
+      });
+    });
 
     document.querySelectorAll("[data-delete-order-id]").forEach((button) => {
       button.addEventListener("click", async () => {
@@ -945,9 +1274,13 @@
   }
 
   function renderPayments() {
+    const paymentList = $("#paymentList");
+    if (!paymentList) {
+      return;
+    }
     const pendingPayments = state.payments.filter((payment) => payment.status !== "confirmed");
 
-    $("#paymentList").innerHTML = pendingPayments
+    paymentList.innerHTML = pendingPayments
       .map((payment) => `
         <article class="payment-row">
           <header>
@@ -1082,20 +1415,64 @@
         showToast("統計已更新。");
       }
     }));
+    $("#resetProductFormButton")?.addEventListener("click", () => resetAdminProductForm());
+    $("#adminProductForm")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formElement = event.currentTarget;
+      const form = new FormData(formElement);
+      const productId = String(form.get("productId") || "").trim();
+      const payload = {
+        productId,
+        name: String(form.get("name") || "").trim(),
+        description: String(form.get("description") || "").trim(),
+        price: Number(form.get("price") || 0),
+        deadline: String(form.get("deadline") || "").trim(),
+        color: String(form.get("color") || "").trim(),
+        imageUrl: String(form.get("imageUrl") || "").trim(),
+        active: form.get("active") === "on",
+        adminPassword: state.adminPassword
+      };
+      if (!payload.name) {
+        showToast("請填寫商品名稱。");
+        return;
+      }
+      if (productId) {
+        await api.request("updateProduct", payload);
+        showToast("商品已更新。");
+      } else {
+        await api.request("createProduct", payload);
+        showToast("商品已新增。");
+      }
+      resetAdminProductForm();
+      await loadDashboard();
+      await loadProducts();
+    });
   }
 
   async function init() {
+    document.body.dataset.view = "shop";
     bindTabs();
     bindMobileStepper();
     bindOrderTabs();
     bindForms();
     bindActions();
+    resetAdminProductForm();
     await loadProducts();
     await loadPublicBoard();
     updatePaymentMethodView();
     activateOrderPanel("my");
     updateMobileChrome("shop");
+    if (consumeAdminEntryHash()) {
+      await activateView("admin");
+    }
   }
+
+  window.addEventListener("hashchange", async () => {
+    if (!consumeAdminEntryHash()) {
+      return;
+    }
+    await activateView("admin");
+  });
 
   init().catch((error) => showToast(error.message));
 })();
