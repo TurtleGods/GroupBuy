@@ -3,5 +3,5 @@ window.GROUP_BUY_CONFIG = {
   // then paste the /exec URL here.
   apiUrl: "https://script.google.com/macros/s/AKfycby779ZM4wU--nNDaWqoV8NbCK-cq7_NK65Qp_H9ento1Mi5V2WgJfe-MGx7z_CFdViXJQ/exec",
   // Hidden admin entry. Open the site with this hash to enter the admin login page.
-  adminEntryHash: "#admin-pigeon-2026"
+  adminEntryHash: "#admin"
 };
