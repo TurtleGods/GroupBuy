@@ -568,3 +568,79 @@ body {
     column-gap: 24px;
   }
 }
+
+/*
+ * Centre every panel in a single column on phones and small tablets.
+ * Keep this block last: it replaces the fixed left margins used above.
+ */
+@media (max-width: 760px) {
+  :root {
+    --mobile-col: min(100% - 52px, 440px);
+    --mobile-edge: max(26px, calc((100% - 440px) / 2));
+  }
+
+  main {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* The shop view is a grid by ID, so hide it explicitly when another view is active. */
+  #shopView:not(.is-active) {
+    display: none;
+  }
+
+  #shopView > .shop-hero,
+  #shopView > .section-head,
+  #shopView > .catalog,
+  #shopView > .delivery-panel,
+  #shopView > .order-panel,
+  #paymentView > .section-head,
+  #paymentView > .payment-checkout,
+  #orderView {
+    box-sizing: border-box;
+    width: var(--mobile-col);
+    max-width: none;
+    margin-left: auto;
+    margin-right: auto;
+    justify-self: center;
+  }
+
+  #adminView {
+    box-sizing: border-box;
+    width: min(100% - 32px, 720px);
+    max-width: none;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  #shopView > .shop-actions-bar,
+  .payment-actions-bar {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: var(--mobile-edge);
+    padding-right: var(--mobile-edge);
+  }
+
+  /* Cards fill the column so their edges line up with the hero and delivery panels. */
+  .catalog > .product-card {
+    width: 100%;
+    max-width: none;
+    justify-self: stretch;
+  }
+
+  /* Without this the input padding hides the quantity on narrow phones. */
+  .qty-control input {
+    padding: 0;
+  }
+
+  .site-footer {
+    width: 100%;
+    max-width: none;
+  }
+}
