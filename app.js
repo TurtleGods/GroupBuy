@@ -9,37 +9,34 @@
   const demoProducts = [
     {
       id: "p001",
-      name: "手作蛋黃酥",
-      description: "六入禮盒，到貨日可統一取貨。",
-      price: 420,
-      deadline: "6/12 中午截止",
-      color: "#1d6b73"
+      name: "頂級愛文芒果6入",
+      description: "頂級愛文，香甜多汁，好吃好吃好好吃，新鮮配送，好吃直達",
+      price: 600,
+      deadline: "7/1 17:00",
+      color: "#e3b500",
+      imageUrl: "assets/figma/mango-product.png"
     },
     {
       id: "p002",
-      name: "冷泡茶組",
-      description: "一組 10 包，無糖，辦公室冰箱友善。",
-      price: 260,
-      deadline: "6/10 下班前截止",
-      color: "#6d7f32"
+      name: "頂級愛文芒果8入",
+      description: "頂級愛文，香甜多汁，好吃好吃好好吃，新鮮配送，好吃直達",
+      price: 800,
+      deadline: "7/1 17:00",
+      color: "#e3b500",
+      imageUrl: "assets/figma/mango-product.png"
     },
     {
       id: "p003",
-      name: "咖啡濾掛包",
-      description: "綜合風味 20 入，可備註偏好。",
-      price: 350,
-      deadline: "6/14 晚上截止",
-      color: "#81533a"
-    },
-    {
-      id: "p004",
-      name: "水果優格杯",
-      description: "週五下午配送，需冷藏。",
-      price: 95,
-      deadline: "每週三截止",
-      color: "#b6452c"
+      name: "頂級愛文芒果12入",
+      description: "頂級愛文，香甜多汁，好吃好吃好好吃，新鮮配送，好吃直達",
+      price: 1200,
+      deadline: "7/1 17:00",
+      color: "#e3b500",
+      imageUrl: "assets/figma/mango-product.png"
     }
   ];
+
+  const storedOrder = readStoredOrder();
 
   const state = {
     products: [],
@@ -49,11 +46,13 @@
     publicOrders: [],
     publicPayments: [],
     cart: new Map(),
-    currentOrder: readSessionJSON("groupbuy.currentOrder"),
+    currentOrder: storedOrder,
     adminPassword: sessionStorage.getItem("groupbuy.adminPassword") || "",
-    currentOrderId: sessionStorage.getItem("groupbuy.currentOrderId") || "",
+    currentOrderId: storedOrder ? String(storedOrder.id || "") : "",
     orderPanel: "my",
     orderSearchQuery: "",
+    searchResults: [],
+    searchSubmitted: false,
     adminOrderFilter: "all",
     deletedCount: 0
   };
@@ -104,7 +103,8 @@
           message.includes("Unknown action: createProduct") ||
           message.includes("Unknown action: updateProduct") ||
           message.includes("Unknown action: deleteProduct") ||
-          message.includes("Unknown action: updateOrderStatus")
+          message.includes("Unknown action: updateOrderStatus") ||
+          message.includes("Unknown action: lookupOrders")
         ) {
           throw new Error("後台 API 還是舊版，請重新部署 Google Apps Script Web App。");
         }
@@ -142,15 +142,26 @@
       storage.set("groupbuy.payments", [payment, ...payments]);
       return Promise.resolve(payment);
     }
-    if (action === "publicBoard") {
+    if (action === "lookupOrders") {
+      const buyerName = normalizeLookup(payload.buyerName);
+      const matched = buyerName
+        ? orders.filter((item) => normalizeLookup(item.buyerName) === buyerName)
+        : [];
+      const matchedIds = new Set(matched.map((item) => item.id));
       return Promise.resolve({
-        orders,
-        payments: payments.map((payment) => ({
-          orderId: payment.orderId,
-          amount: Number(payment.amount || 0),
-          status: payment.status || "pending"
-        }))
+        orders: matched,
+        payments: payments
+          .filter((payment) => matchedIds.has(payment.orderId))
+          .map((payment) => ({
+            orderId: payment.orderId,
+            amount: Number(payment.amount || 0),
+            status: payment.status || "pending"
+          }))
       });
+    }
+    if (action === "publicBoard") {
+      // Orders are not listed publicly: they are only returned by lookupOrders (exact buyer name).
+      return Promise.resolve({ orders: [], payments: [] });
     }
     if (action === "dashboard") {
       return Promise.resolve({
@@ -251,8 +262,7 @@
       );
       storage.set("groupbuy.orders", []);
       storage.set("groupbuy.payments", []);
-      sessionStorage.removeItem("groupbuy.currentOrder");
-      sessionStorage.removeItem("groupbuy.currentOrderId");
+      clearCurrentOrder();
       return Promise.resolve({ ok: true });
     }
 
@@ -340,13 +350,69 @@
     return new Promise((resolve) => window.setTimeout(resolve, ms));
   }
 
-  function readSessionJSON(key) {
-    try {
-      const value = sessionStorage.getItem(key);
-      return value ? JSON.parse(value) : null;
-    } catch (_) {
-      return null;
+  // The buyer's own order is remembered in this browser so "我的訂單" survives closing the tab.
+  // sessionStorage is still read as a fallback for orders saved by the previous version.
+  function readStoredOrder() {
+    for (const getStore of [() => localStorage, () => sessionStorage]) {
+      try {
+        const value = getStore().getItem("groupbuy.currentOrder");
+        const order = value ? JSON.parse(value) : null;
+        if (order && order.id) {
+          return order;
+        }
+      } catch (_) {
+        // Storage unavailable or corrupted: fall through.
+      }
     }
+    return null;
+  }
+
+  function saveCurrentOrder(order) {
+    state.currentOrder = order;
+    state.currentOrderId = String(order.id || "");
+    try {
+      localStorage.setItem("groupbuy.currentOrder", JSON.stringify(order));
+      sessionStorage.removeItem("groupbuy.currentOrder");
+      sessionStorage.removeItem("groupbuy.currentOrderId");
+    } catch (_) {
+      // Storage unavailable: the order still lives in memory for this visit.
+    }
+  }
+
+  function clearCurrentOrder() {
+    state.currentOrder = null;
+    state.currentOrderId = "";
+    try {
+      localStorage.removeItem("groupbuy.currentOrder");
+      sessionStorage.removeItem("groupbuy.currentOrder");
+      sessionStorage.removeItem("groupbuy.currentOrderId");
+    } catch (_) {
+      // Nothing to clear.
+    }
+  }
+
+  function normalizeLookup(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  // Replaces the cached payments of the given orders with the freshly fetched ones.
+  function mergeOrderPayments(orders, payments) {
+    const orderIds = new Set(orders.map((order) => order.id));
+    state.publicPayments = state.publicPayments
+      .filter((payment) => !orderIds.has(payment.orderId))
+      .concat(Array.isArray(payments) ? payments : []);
+  }
+
+  // state.publicOrders only holds this visitor's own order plus what they looked up by name.
+  function syncVisibleOrders() {
+    const seen = new Set();
+    state.publicOrders = [state.currentOrder, ...state.searchResults].filter((order) => {
+      if (!order || !order.id || seen.has(order.id)) {
+        return false;
+      }
+      seen.add(order.id);
+      return true;
+    });
   }
 
   function bindTabs() {
@@ -576,7 +642,7 @@
         const qty = state.cart.get(product.id) || 0;
         const initial = product.name.slice(0, 1);
         const productMedia = product.imageUrl
-          ? `<img class="product-image" src="${escapeAttribute(product.imageUrl)}" alt="${escapeAttribute(product.name)}" loading="lazy">`
+          ? `<div class="product-media"><img class="product-image" src="${escapeAttribute(product.imageUrl)}" alt="${escapeAttribute(product.name)}" loading="lazy"></div>`
           : `<div class="product-art" style="background:${product.color || "#1d6b73"}">${escapeHtml(initial)}</div>`;
         return `
           <article class="product-card">
@@ -584,14 +650,16 @@
             <div class="product-body">
               <h3>${escapeHtml(product.name)}</h3>
               <p>${escapeHtml(product.description || "")}</p>
-              <div class="product-meta">
-                <span class="price">${money.format(Number(product.price || 0))}</span>
-                <span class="deadline">${escapeHtml(product.deadline || "")}</span>
-              </div>
-              <div class="qty-control" data-product-id="${product.id}">
-                <button type="button" data-delta="-1" aria-label="減少 ${escapeHtml(product.name)} 數量">−</button>
-                <input value="${qty}" inputmode="numeric" pattern="[0-9]*" aria-label="${escapeHtml(product.name)} 數量">
-                <button type="button" data-delta="1" aria-label="增加 ${escapeHtml(product.name)} 數量">+</button>
+              <div class="product-purchase-row">
+                <div class="product-meta">
+                  <span class="price">${money.format(Number(product.price || 0))}</span>
+                  <span class="deadline">${escapeHtml(product.deadline || "")}</span>
+                </div>
+                <div class="qty-control" data-product-id="${product.id}">
+                  <button type="button" data-delta="-1" aria-label="減少 ${escapeHtml(product.name)} 數量">−</button>
+                  <input value="${qty}" inputmode="numeric" pattern="[0-9]*" aria-label="${escapeHtml(product.name)} 數量">
+                  <button type="button" data-delta="1" aria-label="增加 ${escapeHtml(product.name)} 數量">+</button>
+                </div>
               </div>
             </div>
           </article>
@@ -682,7 +750,7 @@
     }
     const deliveryPanelCopy = document.querySelector(".delivery-panel-copy p");
     if (deliveryPanelCopy) {
-      deliveryPanelCopy.innerHTML = `每件商品加收 <strong>NT$10</strong> 運費，數量 1 = 運費 10 元，數量 5 = 運費 50 元，與商品一併結算。`;
+      deliveryPanelCopy.innerHTML = `每盒訂單運費 <strong>NT$10</strong>，與商品一起結算`;
     }
   }
 
@@ -712,10 +780,7 @@
         };
 
         const order = await api.request("createOrder", payload);
-        state.currentOrder = order;
-        state.currentOrderId = order.id || "";
-        sessionStorage.setItem("groupbuy.currentOrder", JSON.stringify(order));
-        sessionStorage.setItem("groupbuy.currentOrderId", state.currentOrderId);
+        saveCurrentOrder(order);
         state.cart.clear();
         formElement.reset();
         renderProducts();
@@ -754,8 +819,7 @@
         await loadPublicBoard();
         const targetOrder = state.publicOrders.find((order) => order.id === payload.orderId);
         if (targetOrder && targetOrder.id === state.currentOrderId) {
-          state.currentOrder = targetOrder;
-          sessionStorage.setItem("groupbuy.currentOrder", JSON.stringify(targetOrder));
+          saveCurrentOrder(targetOrder);
         }
         formElement.reset();
         updatePaymentMethodView();
@@ -770,11 +834,30 @@
       }
     });
 
-    $("#orderSearchForm").addEventListener("submit", (event) => {
+    $("#orderSearchForm").addEventListener("submit", async (event) => {
       event.preventDefault();
       const form = new FormData(event.currentTarget);
-      state.orderSearchQuery = String(form.get("orderSearchQuery") || "").trim();
-      renderOrderSearchResults();
+      const buyerName = String(form.get("orderSearchQuery") || "").trim();
+      if (!buyerName) {
+        showToast("請輸入訂購人姓名。");
+        return;
+      }
+
+      const loading = showLoading();
+      try {
+        const data = await api.request("lookupOrders", { buyerName });
+        const orders = data && Array.isArray(data.orders) ? data.orders : [];
+        state.orderSearchQuery = buyerName;
+        state.searchResults = orders;
+        state.searchSubmitted = true;
+        mergeOrderPayments(orders, data && data.payments);
+        syncVisibleOrders();
+        renderOrderSearchResults();
+      } catch (error) {
+        showToast(error.message);
+      } finally {
+        hideLoading(loading.token);
+      }
     });
 
     $("#adminLoginForm").addEventListener("submit", async (event) => {
@@ -809,18 +892,27 @@
   }
 
   async function loadPublicBoard() {
-    try {
-      const data = await api.request("publicBoard");
-      state.publicOrders = data.orders || [];
-      state.publicPayments = data.payments || [];
-      renderPaymentOrders();
-      renderActiveOrderPanel();
-    } catch (error) {
-      state.publicOrders = [];
-      state.publicPayments = [];
-      renderPaymentOrders(error.message);
-      renderActiveOrderPanel();
+    // Only this visitor's own order is refreshed, looked up by their exact name.
+    const current = state.currentOrder;
+    if (current && current.id && current.buyerName) {
+      try {
+        const data = await api.request("lookupOrders", { buyerName: current.buyerName });
+        const orders = data && Array.isArray(data.orders) ? data.orders : [];
+        const fresh = orders.find((order) => order.id === current.id);
+        if (fresh) {
+          saveCurrentOrder(fresh);
+          mergeOrderPayments([fresh], (data.payments || []).filter((payment) => payment.orderId === fresh.id));
+        } else {
+          // The order no longer exists (for example an admin deleted it).
+          clearCurrentOrder();
+        }
+      } catch (_) {
+        // Backend unreachable or not redeployed yet: keep the copy saved in this browser.
+      }
     }
+    syncVisibleOrders();
+    renderPaymentOrders();
+    renderActiveOrderPanel();
   }
 
   function prefillPaymentForm(order) {
@@ -947,8 +1039,7 @@
       return;
     }
 
-    const query = state.orderSearchQuery.trim().toLowerCase();
-    if (!query) {
+    if (!state.searchSubmitted) {
       list.innerHTML = "";
       if (resultsSection) {
         resultsSection.hidden = true;
@@ -960,9 +1051,7 @@
       resultsSection.hidden = false;
     }
 
-    const matchedOrders = state.publicOrders.filter((order) =>
-      String(order.buyerName || "").toLowerCase().includes(query)
-    );
+    const matchedOrders = state.searchResults;
 
     list.innerHTML = matchedOrders.length
       ? matchedOrders
@@ -1017,7 +1106,7 @@
             `;
           })
           .join("")
-      : `<p class="helper-text">查無訂單。</p>`;
+      : `<p class="helper-text">查無訂單，請確認姓名是否與下單時完全相同。</p>`;
   }
 
   function calculateTotalQty(items) {

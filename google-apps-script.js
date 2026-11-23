@@ -43,10 +43,15 @@ function route(action, payload) {
   if (action === "createPayment") {
     return createPayment(payload);
   }
+  if (action === "lookupOrders") {
+    return lookupOrders(payload);
+  }
   if (action === "publicBoard") {
+    // The full order list is no longer public. Kept only so older cached copies of the site
+    // do not error; orders are returned by lookupOrders (exact buyer name) or the admin dashboard.
     return {
-      orders: listOrders(),
-      payments: listPublicPayments()
+      orders: [],
+      payments: []
     };
   }
   if (action === "dashboard") {
@@ -458,6 +463,27 @@ function listOrders() {
     status: String(order.status || "unpaid"),
     createdAt: String(order.createdAt || "")
   })).reverse();
+}
+
+// Returns the orders whose buyer name matches exactly (case-insensitive, trimmed).
+// Partial names never match, so one character cannot list everyone's orders.
+function lookupOrders(payload) {
+  const buyerName = normalizeLookup(payload.buyerName);
+  if (!buyerName) {
+    throw new Error("請輸入訂購人姓名");
+  }
+
+  const orders = listOrders().filter((item) => normalizeLookup(item.buyerName) === buyerName);
+  const orderIds = orders.map((item) => item.id);
+
+  return {
+    orders: orders,
+    payments: listPublicPayments().filter((payment) => orderIds.indexOf(payment.orderId) !== -1)
+  };
+}
+
+function normalizeLookup(value) {
+  return String(value || "").trim().toLowerCase();
 }
 
 function listPayments() {

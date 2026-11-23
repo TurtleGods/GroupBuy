@@ -7,6 +7,8 @@
     <meta name="description" content="Pigeon Packet Reserve 團購預訂系統，提供商品下單、付款回報與管理確認流程。">
     <link rel="icon" type="image/svg+xml" href="favicon-tech.svg">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="figma-overrides.css?v=20261123-3">
+    <link rel="stylesheet" href="desktop.css?v=20261123-3">
   </head>
   <body>
     <header class="app-header">
@@ -19,7 +21,7 @@
         <a class="brand-title" href="https://groupbuy.pigeon-packet.com/" aria-label="BUY TOGETHER">
           BUY TOGETHER
         </a>
-        <p class="brand-tagline">- 吃好吃，好開心-</p>
+        <p class="brand-tagline">- 好吃的，提振精神 -</p>
       </div>
       <nav class="tabs" aria-label="主要功能">
         <button class="tab is-active" data-view="shop" type="button">下單</button>
@@ -60,12 +62,12 @@
           <div class="shop-hero-copy">
             <dl class="shop-hero-dates">
               <div>
-                <dt>6/30 16:00</dt>
+                <dt>7/1 17:00</dt>
                 <dd>收單截止</dd>
               </div>
               <div>
-                <dt>7/1 16:00 前</dt>
-                <dd>付款，未付款即刪單</dd>
+                <dt>7/1 18:00</dt>
+                <dd>付款期限</dd>
               </div>
             </dl>
           </div>
@@ -94,9 +96,26 @@
           </div>
           <div class="delivery-panel-copy">
             <h3>配送說明</h3>
-            <p>每件商品加收 <strong>NT$10</strong> 運費，數量 1 = 運費 10 元，數量 5 = 運費 50 元，與商品一併結算。</p>
+            <p>每盒訂單運費 <strong>NT$10</strong>，與商品一起結算</p>
           </div>
         </section>
+
+        <div class="shop-actions-bar" id="shopActionsBar" aria-label="訂單摘要與下一步">
+          <div class="shop-actions-summary">
+            <div class="shop-actions-icon" aria-hidden="true">
+              <svg class="icon-svg icon-svg-bag" viewBox="0 0 24 24">
+                <path d="M7 8.5V7.2A5 5 0 0 1 12 3.8a5 5 0 0 1 5 3.4v1.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                <path d="M5.5 8.5h13l-1.1 11H6.6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+                <path d="M9.2 11.3c0 1.5 1.2 2.7 2.8 2.7s2.8-1.2 2.8-2.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="shop-actions-count" id="shopSelectedCount">已選 0 件商品</div>
+              <div class="shop-actions-total">總計 <strong id="shopStickyTotal">NT$0</strong></div>
+            </div>
+          </div>
+          <button class="primary-button order-submit-button" type="submit" form="orderForm">下一步：付款</button>
+        </div>
 
         <form class="panel order-panel" id="orderForm">
           <h3>訂購人資料</h3>
@@ -252,8 +271,8 @@
           <h2 class="order-page-title" id="searchOrderTitle">訂單查詢</h2>
           <form class="order-search-form" id="orderSearchForm">
             <label class="order-search-input">
-              <span class="sr-only">請輸入姓名</span>
-              <input name="orderSearchQuery" id="orderSearchQuery" type="search" placeholder="請輸入姓名" autocomplete="off">
+              <span class="sr-only">請輸入訂購人姓名</span>
+              <input name="orderSearchQuery" id="orderSearchQuery" type="search" placeholder="請輸入訂購人姓名" autocomplete="off" required>
               <button type="submit" aria-label="搜尋訂單">
                 <svg class="icon-svg icon-svg-search" viewBox="0 0 24 24" aria-hidden="true">
                   <circle cx="11" cy="11" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
@@ -261,6 +280,7 @@
                 </svg>
               </button>
             </label>
+            <p class="order-search-hint">請輸入與下單時完全相同的姓名。</p>
           </form>
 
           <section class="order-search-results" id="orderSearchResults" hidden>
@@ -435,23 +455,6 @@
       </section>
     </main>
 
-    <div class="shop-actions-bar" id="shopActionsBar" aria-label="訂單摘要與下一步">
-      <div class="shop-actions-summary">
-        <div class="shop-actions-icon" aria-hidden="true">
-          <svg class="icon-svg icon-svg-bag" viewBox="0 0 24 24">
-            <path d="M7 8.5V7.2A5 5 0 0 1 12 3.8a5 5 0 0 1 5 3.4v1.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-            <path d="M5.5 8.5h13l-1.1 11H6.6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
-            <path d="M9.2 11.3c0 1.5 1.2 2.7 2.8 2.7s2.8-1.2 2.8-2.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
-          </svg>
-        </div>
-        <div>
-          <div class="shop-actions-count" id="shopSelectedCount">已選 0 件商品</div>
-          <div class="shop-actions-total">總計 <strong id="shopStickyTotal">NT$0</strong></div>
-        </div>
-      </div>
-      <button class="primary-button order-submit-button" type="submit" form="orderForm">下一步：付款</button>
-    </div>
-
     <footer class="site-footer">
       <a class="footer-brand" href="https://www.pigeon-packet.com/" aria-label="前往 Pigeon Packet 官方網站">
         <img src="logo.svg" alt="" aria-hidden="true">
@@ -470,7 +473,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <script src="config.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=20261123-3"></script>
   </body>
 
 </html>
