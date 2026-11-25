@@ -2,14 +2,16 @@ const SHEETS = {
   products: "Products",
   orders: "Orders",
   payments: "Payments",
-  deletedOrders: "DeletedOrders"
+  deletedOrders: "DeletedOrders",
+  settings: "Settings"
 };
 
 const HEADERS = {
   Products: ["id", "name", "description", "price", "deadline", "color", "imageUrl", "active"],
   Orders: ["id", "buyerName", "itemsJson", "subtotal", "shipping", "total", "status", "createdAt"],
   Payments: ["id", "orderId", "payerName", "amount", "method", "reference", "status", "createdAt"],
-  DeletedOrders: ["id", "buyerName", "total", "deletedAt"]
+  DeletedOrders: ["id", "buyerName", "total", "deletedAt"],
+  Settings: ["key", "value"]
 };
 
 function doPost(event) {
@@ -36,6 +38,9 @@ function route(action, payload) {
 
   if (action === "listProducts") {
     return listProducts();
+  }
+  if (action === "getSettings") {
+    return getSettings();
   }
   if (action === "createOrder") {
     return createOrder(payload);
@@ -109,7 +114,7 @@ function ensureSheets() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 
   Object.keys(HEADERS).forEach((sheetName) => {
-    let sheet = spreadsheet.getSheetByName(sheetName);
+    let sheet = findSheet(sheetName);
     if (!sheet) {
       sheet = spreadsheet.insertSheet(sheetName);
     }
@@ -135,6 +140,39 @@ function ensureSheets() {
   });
 
   seedProductsIfEmpty();
+  seedSettingsIfEmpty();
+}
+
+function seedSettingsIfEmpty() {
+  const sheet = getSheet(SHEETS.settings);
+  if (sheet.getLastRow() > 1) {
+    return;
+  }
+
+  const rows = [
+    ["hero.primaryValue", "7/1 17:00"],
+    ["hero.primaryLabel", "收單截止"],
+    ["hero.secondaryValue", "7/1 18:00"],
+    ["hero.secondaryLabel", "付款期限"],
+    ["delivery.fee", "10"],
+    ["delivery.description", ""]
+  ];
+  // Plain text so values such as "7/1 17:00" are not turned into dates.
+  sheet.getRange(2, 1, rows.length, 2).setNumberFormat("@").setValues(rows);
+}
+
+// Key/value rows of the Settings sheet, e.g. { "delivery.fee": "30" }.
+// Display values are used so dates and numbers come back exactly as typed in the sheet.
+function getSettings() {
+  const values = getSheet(SHEETS.settings).getDataRange().getDisplayValues();
+  const settings = {};
+  values.slice(1).forEach((row) => {
+    const key = String(row[0] || "").trim();
+    if (key) {
+      settings[key] = String(row[1] || "").trim();
+    }
+  });
+  return settings;
 }
 
 function migrateOrdersSheet(sheet) {
@@ -554,8 +592,19 @@ function clearSheetData(sheet) {
   sheet.getRange(2, 1, lastRow - 1, lastColumn).clearContent();
 }
 
+// Exact name first, then case-insensitive (so a tab named "settings" is also found).
+function findSheet(sheetName) {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const exact = spreadsheet.getSheetByName(sheetName);
+  if (exact) {
+    return exact;
+  }
+  const target = String(sheetName).toLowerCase();
+  return spreadsheet.getSheets().filter((sheet) => sheet.getName().toLowerCase() === target)[0] || null;
+}
+
 function getSheet(sheetName) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const sheet = findSheet(sheetName);
   if (!sheet) {
     throw new Error("Missing sheet: " + sheetName);
   }

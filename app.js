@@ -36,10 +36,21 @@
     }
   ];
 
+  // Fallbacks used when the Settings sheet is missing a key (or the API is an older deployment).
+  const DEFAULT_SETTINGS = {
+    "hero.primaryValue": "7/1 17:00",
+    "hero.primaryLabel": "收單截止",
+    "hero.secondaryValue": "7/1 18:00",
+    "hero.secondaryLabel": "付款期限",
+    "delivery.fee": "10",
+    "delivery.description": ""
+  };
+
   const storedOrder = readStoredOrder();
 
   const state = {
     products: [],
+    settings: { ...DEFAULT_SETTINGS },
     adminProducts: [],
     orders: [],
     payments: [],
@@ -121,6 +132,9 @@
 
     if (action === "listProducts") {
       return Promise.resolve(products.filter((product) => product.active !== false));
+    }
+    if (action === "getSettings") {
+      return Promise.resolve(storage.get("groupbuy.settings", {}));
     }
     if (action === "createOrder") {
       const order = {
@@ -644,6 +658,59 @@
     updateCartSummary();
   }
 
+  // Reads the key/value rows of the Settings sheet. Never throws: the shop still works on defaults.
+  async function loadSettings() {
+    try {
+      const remote = await api.request("getSettings");
+      const merged = { ...DEFAULT_SETTINGS };
+      Object.entries(remote || {}).forEach(([key, value]) => {
+        const text = String(value ?? "").trim();
+        if (text !== "") {
+          merged[key] = text;
+        }
+      });
+      state.settings = merged;
+    } catch (error) {
+      console.warn("讀取 Settings 失敗，改用預設值：", error.message);
+    }
+    applySettings();
+  }
+
+  function applySettings() {
+    const heroFields = {
+      heroPrimaryValue: "hero.primaryValue",
+      heroPrimaryLabel: "hero.primaryLabel",
+      heroSecondaryValue: "hero.secondaryValue",
+      heroSecondaryLabel: "hero.secondaryLabel"
+    };
+    Object.entries(heroFields).forEach(([elementId, key]) => {
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.textContent = state.settings[key] || "";
+      }
+    });
+    updateCartSummary();
+  }
+
+  function getDeliveryFee() {
+    const raw = String(state.settings["delivery.fee"] ?? "").trim();
+    const fee = Number(raw);
+    return raw !== "" && Number.isFinite(fee) && fee >= 0 ? fee : Number(DEFAULT_SETTINGS["delivery.fee"]);
+  }
+
+  function getDeliveryDescriptionHtml() {
+    const custom = String(state.settings["delivery.description"] || "").trim();
+    if (custom) {
+      return sanitizeRichText(custom);
+    }
+    return `每件商品運費 <strong>${money.format(getDeliveryFee())}</strong>，與商品一起結算`;
+  }
+
+  // Settings text may use <strong>, <b> and <br>; everything else is escaped.
+  function sanitizeRichText(value) {
+    return escapeHtml(value).replace(/&lt;(\/?)(strong|b|br)\s*\/?&gt;/gi, "<$1$2>");
+  }
+
   function renderProducts() {
     $("#productList").innerHTML = state.products
       .map((product) => {
@@ -714,7 +781,7 @@
   function calculateOrderTotals(items = []) {
     const subtotal = items.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
     const totalQty = items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
-    const shipping = totalQty * 10;
+    const shipping = totalQty * getDeliveryFee();
     const total = subtotal + shipping;
     return { subtotal, shipping, total, totalQty };
   }
@@ -758,7 +825,7 @@
     }
     const deliveryPanelCopy = document.querySelector(".delivery-panel-copy p");
     if (deliveryPanelCopy) {
-      deliveryPanelCopy.innerHTML = `每盒訂單運費 <strong>NT$10</strong>，與商品一起結算`;
+      deliveryPanelCopy.innerHTML = getDeliveryDescriptionHtml();
     }
   }
 
@@ -1029,7 +1096,7 @@
               .join("")}
             <div class="mobile-order-row order-shipping-row">
               <span>運費</span>
-              <span>NT$10</span>
+              <span>${money.format(resolveShippingUnit(order, items))}</span>
               <span>x${calculateTotalQty(items)}</span>
               <span>${money.format(shipping)}</span>
             </div>
@@ -1098,7 +1165,7 @@
                       ? `
                         <div class="mobile-order-row order-shipping-row">
                           <span>運費</span>
-                          <span>NT$10</span>
+                          <span>${money.format(resolveShippingUnit(order, items))}</span>
                           <span>x${calculateTotalQty(items)}</span>
                           <span>${money.format(shipping)}</span>
                         </div>
@@ -1126,7 +1193,17 @@
     if (shipping > 0) {
       return shipping;
     }
-    return calculateTotalQty(items) * 10;
+    return calculateTotalQty(items) * getDeliveryFee();
+  }
+
+  // Per-item fee an order was actually charged, so old orders keep their rate after the fee changes.
+  function resolveShippingUnit(order, items = []) {
+    const totalQty = calculateTotalQty(items);
+    const shipping = Number(order?.shipping || 0);
+    if (shipping > 0 && totalQty > 0) {
+      return shipping / totalQty;
+    }
+    return getDeliveryFee();
   }
 
   function getPublicOrderStatus(order) {
@@ -1305,7 +1382,7 @@
                 )
                 .join("<br>")}
               <br>
-              運費｜NT$10 x ${calculateTotalQty(items)} = ${money.format(shipping)}
+              運費｜${money.format(resolveShippingUnit(order, items))} x ${calculateTotalQty(items)} = ${money.format(shipping)}
             </td>
             <td>${money.format(amount)}</td>
             <td><span class="status ${status}">${status === "confirmed" ? "已付款" : status === "canceled" ? "已取消" : "未付款"}</span></td>
@@ -1496,7 +1573,8 @@
   }
 
   function bindActions() {
-    $("#refreshProducts").addEventListener("click", () => loadProducts().then(() => showToast("商品已更新。")));
+    $("#refreshProducts").addEventListener("click", () =>
+      Promise.all([loadProducts(), loadSettings()]).then(() => showToast("商品已更新。")));
     $("#deleteAllOrdersButton").addEventListener("click", async () => {
       if (!window.confirm("確定要刪除全部訂單？相關付款回報也會一起刪除。")) {
         return;
@@ -1554,7 +1632,7 @@
     bindForms();
     bindActions();
     resetAdminProductForm();
-    await loadProducts();
+    await Promise.all([loadProducts(), loadSettings()]);
     await loadPublicBoard();
     updatePaymentMethodView();
     activateOrderPanel("my");
